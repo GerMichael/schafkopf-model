@@ -1,0 +1,27 @@
+[project]
+name = "schafkopf-model"
+version = "0.1.0"
+description = "Reinforcement learning opponent for the Bavarian card game Schafkopf"
+requires-python = ">=3.11"
+
+dependencies = [
+    "numpy>=2.4.3",
+    "pyyaml>=6.0.3",
+    "torch>=2.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
