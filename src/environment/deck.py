@@ -1,4 +1,10 @@
-"""Deck creation and dealing for 4-player Schafkopf."""
-NUM_CARDS = 32
-NUM_PLAYERS = 4
-CARDS_PER_PLAYER = NUM_CARDS // NUM_PLAYERS
+import random
+
+from .card import Card, Suit, Rank
+
+class Deck:
+    @staticmethod
+    def get_shuffled_player_cards() -> list[list[Card]]:
+        cards = [Card(suit=suit, rank=rank) for suit in Suit for rank in Rank]  
+        random.shuffle(cards)
+        return [cards[i::4] for i in range(4)]
