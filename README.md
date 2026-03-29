@@ -4,7 +4,7 @@ Reinforcement learning opponent for the Bavarian card game **Schafkopf**.
 
 ## Schafkopf Game Mechanics
 
-The underlaying Schafkopf rules are not yet configurable. Currently, the following version is implemented:
+The underlying Schafkopf rules are not yet configurable. Currently, the following version is implemented:
 
 ### Available Game Modes
 
