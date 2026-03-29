@@ -71,6 +71,8 @@ class CliGame:
     
     def _ask_game_mode_type(self, player: Player) -> GameModeType:
         playable_modes = sorted((gmt for gmt in GameModeType if gmt != GameModeType.RAMSCH), key=lambda g: g.value)
+        sauspiel_valid_suits = GameMode.get_suits(GameModeType.SAUSPIEL, player.hand_cards)
+        playable_modes = [gmt for gmt in playable_modes if gmt != GameModeType.SAUSPIEL or sauspiel_valid_suits]
         options = ", ".join(f"{gmt.value}: {gmt.name}" for gmt in playable_modes)
         valid = {str(gmt.value) for gmt in playable_modes}
         while True:
@@ -81,8 +83,9 @@ class CliGame:
 
     def _ask_suit(self, player: Player, game_mode_type: GameModeType) -> Suit | None:
         optional = game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT
-        suit_options = ", ".join(f"{s.value}: {s.name}" for s in Suit)
-        valid = {str(s.value) for s in Suit}
+        allowed_suits = GameMode.get_suits(game_mode_type, player.hand_cards)
+        suit_options = ", ".join(f"{s.value}: {s.name}" for s in allowed_suits)
+        valid = {str(s.value) for s in allowed_suits}
         if optional:
             suit_options += ", N: None"
         while True:

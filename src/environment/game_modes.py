@@ -21,6 +21,7 @@ class GameModeType(IntEnum):
 
 GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SAUSPIEL}
 GAME_MODE_TYPES_WITH_OPTIONAL_SUIT = {GameModeType.SOLO}
+SAUSPIEL_VALID_SUITS = {Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN}
 
 class GameMode:
     game_mode_type: GameModeType
@@ -29,16 +30,39 @@ class GameMode:
     def __init__(self, game_mode_type: GameModeType, suit: Suit | None = None):
         self.game_mode_type = game_mode_type
         if game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
-            assert suit is not None, f"Suit must be specified for {game_mode_type.name} mode."
+            if suit is None:
+                raise ValueError(f"Suit must be specified for {game_mode_type.name} mode.")
+            if game_mode_type == GameModeType.SAUSPIEL and suit not in SAUSPIEL_VALID_SUITS:
+                raise ValueError(f"Suit {suit.name} is not valid for Sauspiel (Herz is always trumpf).")
             self.suit = suit
         elif game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
             self.suit = suit
         else:
-            assert suit is None, f"Suit must not be specified for {game_mode_type.name} mode (not in {GAME_MODE_TYPES_WITH_SUIT | GAME_MODE_TYPES_WITH_OPTIONAL_SUIT})."
+            if suit is not None:
+                raise ValueError(f"Suit must not be specified for {game_mode_type.name} mode.")
         
     def is_card_trumpf(self, card: Card) -> bool:
         trumpf_rank_order, _, trumpf_suit_order = self.get_rank_suit_order()
         return card.rank in trumpf_rank_order or card.suit in trumpf_suit_order
+
+    @staticmethod
+    def get_suits(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
+        if game_mode_type == GameModeType.SAUSPIEL:
+            suits = []
+            for suit in SAUSPIEL_VALID_SUITS:
+                has_sau = any(c.suit == suit and c.rank == Rank.SAU for c in hand_cards)
+                has_non_sau = any(
+                    (
+                        c.suit == suit 
+                        and c.rank != Rank.SAU 
+                        and not GameMode.is_card_trumpf(GameMode(game_mode_type, Suit.EICHEL), c)
+                    )
+                    for c in hand_cards
+                )
+                if not has_sau and has_non_sau:
+                    suits.append(suit)
+            return sorted(suits, key=lambda s: s.value)
+        return list(Suit)
     
     def get_rank_suit_order(self, trick_suit: Suit | None = None) -> tuple[list[Rank], list[Rank], list[Suit]]:
         match self.game_mode_type:

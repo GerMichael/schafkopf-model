@@ -53,6 +53,8 @@ class Game:
     def set_game_mode(self, game_mode: GameMode, playing_player: Player | None = None):
         self.game_mode = game_mode
         if self.game_mode.game_mode_type != GameModeType.RAMSCH:
+            if playing_player is None:
+                raise ValueError("playing_player is required for non-RAMSCH game modes")
             # Initially, in Sauspiel it is unclear who the partner is, so we assign all non-playing players to the other team.
             self.playing_team = [playing_player]
             self.defending_team = [p for p in self.players if p != playing_player]
@@ -111,5 +113,7 @@ class Game:
     
     @staticmethod
     def get_winning_card(trick: Trick, game_mode: GameMode) -> Card:
-        return game_mode.highest_card([c for _, c in trick.cards]) 
+        leading_card = trick.get_leading_card()
+        trick_suit = leading_card.suit if leading_card else None
+        return game_mode.highest_card([c for _, c in trick.cards], trick_suit=trick_suit) 
     

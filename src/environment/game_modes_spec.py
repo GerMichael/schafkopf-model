@@ -3,6 +3,35 @@ from src.environment.game_modes import GameMode, GameModeType
 from src.environment.card import Card, Suit, Rank
 
 
+class TestGameModeValidation:
+    def test_sauspiel_rejects_herz(self):
+        with pytest.raises(ValueError, match="not valid for Sauspiel"):
+            GameMode(GameModeType.SAUSPIEL, Suit.HERZ)
+
+    @pytest.mark.parametrize("suit", [Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN])
+    def test_sauspiel_accepts_non_herz(self, suit):
+        gm = GameMode(GameModeType.SAUSPIEL, suit)
+        assert gm.suit == suit
+
+    def test_sauspiel_suits_with_non_sau_card(self):
+        hand = [
+            Card(suit=Suit.EICHEL, rank=Rank.SIEBEN),
+            Card(suit=Suit.EICHEL, rank=Rank.SAU),
+            Card(suit=Suit.GRAS, rank=Rank.KOENIG),
+            Card(suit=Suit.HERZ, rank=Rank.SIEBEN),
+            Card(suit=Suit.SCHELLEN, rank=Rank.OBER),
+        ]
+        assert GameMode.get_suits(GameModeType.SAUSPIEL, hand) == [Suit.GRAS]
+
+    def test_sauspiel_suits_only_sau_no_other(self):
+        hand = [
+            Card(suit=Suit.EICHEL, rank=Rank.SAU),
+            Card(suit=Suit.HERZ, rank=Rank.SIEBEN),
+            Card(suit=Suit.GRAS, rank=Rank.UNTER),
+        ]
+        assert GameMode.get_suits(GameModeType.SAUSPIEL, hand) == []
+
+
 class TestIsCardTrumpf:
     def test_sauspiel_highest_herz_card(self):
         gm = GameMode(GameModeType.SAUSPIEL, Suit.EICHEL)
