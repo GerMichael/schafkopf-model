@@ -127,7 +127,7 @@ class CliGame:
                 choice = int(input("Choose card index: "))
                 if 0 <= choice < len(sorted_cards) and sorted_cards[choice] in valid_cards:
                     return sorted_cards[choice]
-                print("Invalid choice. Pick a valid (unhighlighted) card.")
+                print("Invalid choice. Pick one of the valid (highlighted) cards without an 'x' marker.")
             except ValueError:
                 print("Please enter a number.")
 
