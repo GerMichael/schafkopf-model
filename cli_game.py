@@ -119,7 +119,7 @@ class CliGame:
             print(f"  [{marker}] {idx}: {formatted}")
     
     def _prompt_card_choice(self, player: Player):
-        valid_cards = set(Game.get_valid_cards(player.hand_cards, self.game.current_trick, self.game.game_mode))
+        valid_cards = set(Game.get_valid_cards(player.hand_cards, self.game.current_trick.get_leading_card(), self.game.game_mode))
         sorted_cards = sorted(player.hand_cards)
         self._prompt_cards(sorted_cards, valid_cards)
         while True:

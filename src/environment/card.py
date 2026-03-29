@@ -50,6 +50,9 @@ class Card:
     def __str__(self):
         return f"{self.suit.name} {self.rank.name}"
 
+    def __repr__(self):
+        return f"{self.suit.name} {self.rank.name}"
+
     def __lt__(self, other: "Card") -> bool:
         if self.suit != other.suit:
             return self.suit < other.suit

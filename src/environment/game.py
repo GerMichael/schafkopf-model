@@ -90,16 +90,16 @@ class Game:
         return winner_person, winner_card
 
     @staticmethod
-    def get_valid_cards(available_cards: list[Card], current_trick: Trick, game_mode: GameMode) -> list[Card]:
-        if not current_trick.cards:
+    def get_valid_cards(available_cards: list[Card], leading_card: Card | None, game_mode: GameMode) -> list[Card]:
+        if not leading_card:
             return available_cards
         
-        lead_is_trumpf = game_mode.is_card_trumpf(current_trick.get_leading_card())
+        lead_is_trumpf = game_mode.is_card_trumpf(leading_card)
         if lead_is_trumpf:
             matching = [c for c in available_cards if game_mode.is_card_trumpf(c)]
             return matching or available_cards
         
-        lead_suit = current_trick.get_leading_card().suit
+        lead_suit = leading_card.suit
         matching = [c for c in available_cards if c.suit == lead_suit and not game_mode.is_card_trumpf(c)]
         # If the searched Sau's suit is played, the sau must be played if available
         if game_mode.game_mode_type == GameModeType.SAUSPIEL and lead_suit == game_mode.suit:

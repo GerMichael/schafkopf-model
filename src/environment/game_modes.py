@@ -49,15 +49,15 @@ class GameMode:
             case GameModeType.SOLO:
                 trumpf_rank_order = [Rank.OBER, Rank.UNTER]
                 rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
-                trumpf_suit_order = [self.suit] if self.suit else []
+                trumpf_suit_order = [self.suit] if self.suit is not None else []
             case GameModeType.WENZ:
                 trumpf_rank_order = [Rank.UNTER]
                 rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.OBER, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
-                trumpf_suit_order = [self.suit] if self.suit else []
+                trumpf_suit_order = [self.suit] if self.suit is not None else []
             case GameModeType.GEIER:
                 trumpf_rank_order = [Rank.OBER]
                 rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.UNTER, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
-                trumpf_suit_order = [self.suit] if self.suit else []
+                trumpf_suit_order = [self.suit] if self.suit is not None else []
         if trick_suit and trick_suit not in trumpf_suit_order:
             trumpf_suit_order.append(trick_suit)
         return trumpf_rank_order, rest_rank_order, trumpf_suit_order
