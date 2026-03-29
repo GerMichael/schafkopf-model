@@ -29,7 +29,7 @@ class Card:
         self.rank = rank
 
     def value(self) -> int:
-        match(self.rank):
+        match self.rank:
             case Rank.SIEBEN:
                 return 0
             case Rank.ACHT:
