@@ -29,8 +29,12 @@ class GameMode:
     def __init__(self, game_mode_type: GameModeType, suit: Suit | None = None):
         self.game_mode_type = game_mode_type
         if game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
-            assert suit is not None, f"Suit must be specified for {GAME_MODE_TYPES_WITH_SUIT} mode."
+            assert suit is not None, f"Suit must be specified for {game_mode_type.name} mode."
             self.suit = suit
+        elif game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
+            self.suit = suit
+        else:
+            assert suit is None, f"Suit must not be specified for {game_mode_type.name} mode (not in {GAME_MODE_TYPES_WITH_SUIT | GAME_MODE_TYPES_WITH_OPTIONAL_SUIT})."
         
     def is_card_trumpf(self, card: Card) -> bool:
         trumpf_rank_order, _, trumpf_suit_order = self.get_rank_suit_order()

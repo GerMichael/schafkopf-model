@@ -22,4 +22,5 @@ where = ["."]
 include = ["src*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["src"]
+python_files = ["*_spec.py"]
