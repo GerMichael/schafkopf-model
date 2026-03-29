@@ -41,7 +41,6 @@ class Game:
         player_cards = Deck.get_shuffled_player_cards()
         assert len(player_names) == GameSpec.NUM_PLAYERS, f"Exactly {GameSpec.NUM_PLAYERS} players are required."
         self.players = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, player_cards)]
-        self.game_mode = GameMode(GameModeType.SAUSPIEL, None)  # Default game mode for now
 
     def set_game_mode(self, game_mode: GameMode):
         self.game_mode = game_mode

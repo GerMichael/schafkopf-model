@@ -8,11 +8,18 @@ from src.environment.card import Card, Suit, Rank
 class GameModeType(IntEnum):
     RAMSCH = 0
     SAUSPIEL = 1
-    WENZ = 2
+    SOLO = 2
     GEIER = 3
-    SOLO = 4
+    WENZ = 4
 
-GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SOLO}
+    @staticmethod
+    def highest(game_mode_types: list[GameModeType | None]) -> GameModeType:
+        choices = [gmt for gmt in game_mode_types if gmt is not None]
+        if not choices:
+            return GameModeType.RAMSCH
+        return max(choices)
+
+GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SOLO, GameModeType.SAUSPIEL}
 
 class GameMode:
     game_mode_type: GameModeType
@@ -61,18 +68,5 @@ class GameMode:
                 return (2, rest_rank_order.index(card.rank))
         return min(cards, key=card_sort_key)
 
-    def value(self) -> int:
-        match self.game_mode_type:
-            case GameModeType.RAMSCH:
-                return 0
-            case GameModeType.SAUSPIEL:
-                return 1
-            case GameModeType.SOLO:
-                return 2
-            case GameModeType.GEIER:
-                return 3
-            case GameModeType.WENZ:
-                return 4
-
     def __lt__(self, other: GameMode) -> bool:
-        return self.value() < other.value()
+        return self.game_mode_type < other.game_mode_type

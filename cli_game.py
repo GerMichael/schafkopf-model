@@ -64,29 +64,31 @@ class CliGame:
                 print("Invalid input. Please enter 'y' or 'n'.")
         return player_choices
     
-    def _determine_game_mode(self, player_choices: list[tuple[Player, bool]]) -> tuple[Player, GameMode]:
-        playing_player, highest_game_mode = None, None
+    def _determine_game_mode(self, player_choices: list[tuple[Player, bool]]) -> tuple[Player | None, GameMode]:
+        player_game_mode_types: list[tuple[Player, GameModeType | None]] = []
         for player, wants_to_play in player_choices:
-            if wants_to_play:
-                game_mode = None
-                while True:
-                    mode_choice = input(f"{player.name}, choose game mode (1: Sauspiel, 2: Wenz, 3: Geier, 4: Solo): ").strip()
-                    if mode_choice in ('1', '2', '3', '4'):
-                        mode_type = GameModeType(int(mode_choice))
-                        break
-                    print("Invalid input. Please enter a number between 1 and 4.")
-                suit = None
-                if mode_type in GAME_MODE_TYPES_WITH_SUIT:
-                    while True:
-                        suit_choice = input(f"{player.name}, choose solo suit (0: Eichel, 1: Gras, 2: Herz, 3: Schellen): ").strip()
-                        if suit_choice in ('0', '1', '2', '3'):
-                            suit = Suit(int(suit_choice))
-                            break
-                        print("Invalid input. Please enter a number between 0 and 3.")
-                game_mode = GameMode(mode_type, suit)
-                if highest_game_mode is None or game_mode > highest_game_mode:
-                    playing_player, highest_game_mode = player, game_mode
-
+            if not wants_to_play:
+                player_game_mode_types.append((player, None))
+                continue
+            while True:
+                mode_choice = input(f"{player.name}, choose game mode (1: Sauspiel, 2: Wenz, 3: Geier, 4: Solo): ").strip()
+                if mode_choice in ('1', '2', '3', '4'):
+                    player_game_mode_types.append((player, GameModeType(int(mode_choice))))
+                    break
+                print("Invalid input. Please enter a number between 1 and 4.")
+            suit = None
+        highest_game_mode_type = GameModeType.highest([gm for _, gm in player_game_mode_types])
+        playing_player = next((p for p, gmt in player_game_mode_types if gmt == highest_game_mode_type), None)
+        if highest_game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
+            while True:
+                suit_choice = input(f"{playing_player.name}, choose suit for {highest_game_mode_type.name} (0: Eichel, 1: Gras, 2: Herz, 3: Schellen): ").strip()
+                if suit_choice in ('0', '1', '2', '3'):
+                    suit = Suit(int(suit_choice))
+                    break
+                print("Invalid input. Please enter a number between 0 and 3.")
+            highest_game_mode = GameMode(highest_game_mode_type, suit)
+        else:
+            highest_game_mode = GameMode(highest_game_mode_type)
         return playing_player, highest_game_mode
     
     def _prompt_cards(self, cards: list[Card], valid_cards: list[Card]):
@@ -134,7 +136,10 @@ class CliGame:
         playing_player, game_mode = self._determine_game_mode(player_that_want_to_play)
         self.game.set_game_mode(game_mode)
         # TODO: Find teams for Sauspiel
-        print(f"\n{playing_player.name} will play {game_mode.game_mode_type.name}.")
+        if game_mode.game_mode_type == GameModeType.RAMSCH:
+            print("\nNo one wants to play. Starting Ramsch.")
+        else:
+            print(f"\n{playing_player.name} will play {game_mode.game_mode_type.name}.")
 
         num_rounds = GameSpec.NUM_CARDS // GameSpec.NUM_PLAYERS
         for round_num in range(num_rounds):
