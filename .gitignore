@@ -209,3 +209,6 @@ logs/*.csv
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local configuration file
+config/game_session.yaml

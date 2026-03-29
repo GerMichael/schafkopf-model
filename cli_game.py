@@ -31,11 +31,13 @@ def _format_card(card, valid = True) -> str:
 
 
 class CliGame:
-    def _get_game_config(self) -> dict:
-        if os.path.exists("game_config.yaml"):
-            with open("game_config.yaml", "r") as f:
+    def _get_game_session_config(self) -> dict:
+        config_path = os.path.join(os.getcwd(), "config", "game_session.yaml")
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-            return config
+            if config is not None:
+                return config
         return {}
     
     def _get_player_names(self, game_config: dict) -> list[str]:
@@ -153,7 +155,7 @@ class CliGame:
             print(f"\n{total_winner_player.name} wins the game with {total_won_points} points!")
 
     def run(self):
-        game_config = self._get_game_config()
+        game_config = self._get_game_session_config()
         print(f"Using game config: {game_config}")
         player_names = self._get_player_names(game_config)
         self.game = Game(player_names)
