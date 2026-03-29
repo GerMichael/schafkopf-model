@@ -2,7 +2,7 @@ import os
 
 import yaml
 
-from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GameMode, GameModeType
+from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GAME_MODE_TYPES_WITH_OPTIONAL_SUIT, GameMode, GameModeType
 from src.environment.card import Card, Card, Suit
 from src.environment.game import Game, Player
 from src.environment.game_rules import GameSpec
@@ -67,32 +67,46 @@ class CliGame:
                 print("Invalid input. Please enter 'y' or 'n'.")
         return player_choices
     
+    def _ask_game_mode_type(self, player: Player) -> GameModeType:
+        playable_modes = sorted((gmt for gmt in GameModeType if gmt != GameModeType.RAMSCH), key=lambda g: g.value)
+        options = ", ".join(f"{gmt.value}: {gmt.name}" for gmt in playable_modes)
+        valid = {str(gmt.value) for gmt in playable_modes}
+        while True:
+            choice = input(f"{player.name}, choose game mode ({options}): ").strip()
+            if choice in valid:
+                return GameModeType(int(choice))
+            print(f"Invalid input. Please enter one of: {', '.join(sorted(valid))}.")
+
+    def _ask_suit(self, player: Player, game_mode_type: GameModeType) -> Suit | None:
+        optional = game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT
+        suit_options = ", ".join(f"{s.value}: {s.name}" for s in Suit)
+        valid = {str(s.value) for s in Suit}
+        if optional:
+            suit_options += ", N: None"
+        while True:
+            choice = input(f"{player.name}, choose suit for {game_mode_type.name} ({suit_options}): ").strip()
+            if choice in valid:
+                return Suit(int(choice))
+            if optional and choice.upper() == 'N':
+                return None
+            print("Invalid input.")
+
     def _determine_game_mode(self, player_choices: list[tuple[Player, bool]]) -> tuple[Player | None, GameMode]:
         player_game_mode_types: list[tuple[Player, GameModeType | None]] = []
         for player, wants_to_play in player_choices:
             if not wants_to_play:
                 player_game_mode_types.append((player, None))
-                continue
-            while True:
-                mode_choice = input(f"{player.name}, choose game mode (1: Sauspiel, 2: Wenz, 3: Geier, 4: Solo): ").strip()
-                if mode_choice in ('1', '2', '3', '4'):
-                    player_game_mode_types.append((player, GameModeType(int(mode_choice))))
-                    break
-                print("Invalid input. Please enter a number between 1 and 4.")
-            suit = None
+            else:
+                player_game_mode_types.append((player, self._ask_game_mode_type(player)))
+
         highest_game_mode_type = GameModeType.highest([gm for _, gm in player_game_mode_types])
         playing_player = next((p for p, gmt in player_game_mode_types if gmt == highest_game_mode_type), None)
-        if highest_game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
-            while True:
-                suit_choice = input(f"{playing_player.name}, choose suit for {highest_game_mode_type.name} (0: Eichel, 1: Gras, 2: Herz, 3: Schellen): ").strip()
-                if suit_choice in ('0', '1', '2', '3'):
-                    suit = Suit(int(suit_choice))
-                    break
-                print("Invalid input. Please enter a number between 0 and 3.")
-            highest_game_mode = GameMode(highest_game_mode_type, suit)
-        else:
-            highest_game_mode = GameMode(highest_game_mode_type)
-        return playing_player, highest_game_mode
+
+        suit = None
+        if highest_game_mode_type in GAME_MODE_TYPES_WITH_SUIT | GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
+            suit = self._ask_suit(playing_player, highest_game_mode_type)
+
+        return playing_player, GameMode(highest_game_mode_type, suit)
     
     def _prompt_cards(self, cards: list[Card], valid_cards: list[Card]):
         print(f"Your cards:")
@@ -126,9 +140,14 @@ class CliGame:
         for player in self.game.players:
             player_points = sum(c.value() for trick in player.won_tricks for _, c in trick.cards)
             print(f"{player.name} scored {player_points} points.")
-            if player_points > total_won_points:
-                total_won_points = player_points
-                total_winner_player = player
+            if self.game.game_mode.game_mode_type != GameModeType.RAMSCH:
+                if total_winner_player is None or player_points > total_won_points:
+                    total_won_points = player_points
+                    total_winner_player = player
+            else: 
+                if total_winner_player is None or player_points < total_won_points:
+                    total_won_points = player_points
+                    total_winner_player = player
 
         if total_winner_player:
             print(f"\n{total_winner_player.name} wins the game with {total_won_points} points!")
@@ -147,7 +166,9 @@ class CliGame:
         
         if game_mode.game_mode_type == GameModeType.RAMSCH:
             print("\nNo one wants to play. Starting Ramsch.")
-        elif game_mode.game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
+        elif game_mode.game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT and game_mode.suit is None:
+            print(f"\n{playing_player.name} will play {game_mode.game_mode_type.name} (no suit).")
+        elif game_mode.suit is not None:
             print(f"\n{playing_player.name} will play {_format_suit(game_mode.suit)} {game_mode.game_mode_type.name}.")
         else:
             print(f"\n{playing_player.name} will play {game_mode.game_mode_type.name}.")

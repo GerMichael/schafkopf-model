@@ -19,7 +19,8 @@ class GameModeType(IntEnum):
             return GameModeType.RAMSCH
         return max(choices)
 
-GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SOLO, GameModeType.SAUSPIEL}
+GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SAUSPIEL}
+GAME_MODE_TYPES_WITH_OPTIONAL_SUIT = {GameModeType.SOLO}
 
 class GameMode:
     game_mode_type: GameModeType
@@ -44,7 +45,7 @@ class GameMode:
             case GameModeType.SOLO:
                 trumpf_rank_order = [Rank.OBER, Rank.UNTER]
                 rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
-                trumpf_suit_order = [self.suit]
+                trumpf_suit_order = [self.suit] if self.suit else []
             case GameModeType.WENZ:
                 trumpf_rank_order = [Rank.UNTER]
                 rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.OBER, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
