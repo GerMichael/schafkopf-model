@@ -3,7 +3,7 @@ import os
 import yaml
 
 from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GAME_MODE_TYPES_WITH_OPTIONAL_SUIT, GameMode, GameModeType
-from src.environment.card import Card, Card, Suit
+from src.environment.card import Card, Suit
 from src.environment.game import Game, Player
 from src.environment.game_rules import GameSpec
 
