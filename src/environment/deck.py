@@ -1,6 +1,6 @@
 import random
 
-from .card import Card, Suit, Rank
+from src.environment.card import Card, Suit, Rank
 
 class Deck:
     @staticmethod

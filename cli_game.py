@@ -1,9 +1,6 @@
-import sys
 import os
 
 import yaml
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GameMode, GameModeType
 from src.environment.card import Card, Card, Suit
@@ -57,7 +54,8 @@ class CliGame:
     def _ask_players_to_play(self, players: list[Player]) -> list[tuple[Player, bool]]:
         player_choices = []
         for player in players:
-            self._prompt_cards(player.hand_cards, valid_cards=player.hand_cards)
+            sorted_cards = sorted(player.hand_cards)
+            self._prompt_cards(sorted_cards, valid_cards=player.hand_cards)
             while True:
                 choice = input(f"{player.name}, do you want to play? (y/n): ").strip().lower()
                 if choice in ('y', 'n'):

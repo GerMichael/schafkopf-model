@@ -2,7 +2,7 @@
 
 from enum import IntEnum
 
-from environment.card import Card, Suit, Rank
+from src.environment.card import Card, Suit, Rank
 
 
 class GameModeType(IntEnum):
@@ -25,11 +25,41 @@ class GameMode:
             self.suit = suit
         
     def is_card_trumpf(self, card: Card) -> bool:
-        if self.game_mode_type == GameModeType.SOLO:
-            return card.suit == self.suit
-        if card.suit == Suit.HERZ:
-            return True
-        return card.rank in (Rank.UNTER, Rank.OBER)
+        trumpf_rank_order, _, trumpf_suit_order = self.get_rank_suit_order()
+        return card.rank in trumpf_rank_order or card.suit in trumpf_suit_order
+    
+    def get_rank_suit_order(self, trick_suit: Suit | None = None) -> tuple[list[Rank], list[Rank], list[Suit]]:
+        match self.game_mode_type:
+            case GameModeType.SAUSPIEL | GameModeType.RAMSCH:
+                trumpf_rank_order = [Rank.OBER, Rank.UNTER]
+                rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
+                trumpf_suit_order = [Suit.HERZ]
+            case GameModeType.SOLO:
+                trumpf_rank_order = [Rank.OBER, Rank.UNTER]
+                rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
+                trumpf_suit_order = [self.suit]
+            case GameModeType.WENZ:
+                trumpf_rank_order = [Rank.UNTER]
+                rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.OBER, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
+                trumpf_suit_order = [self.suit] if self.suit else []
+            case GameModeType.GEIER:
+                trumpf_rank_order = [Rank.OBER]
+                rest_rank_order = [Rank.SAU, Rank.ZEHN, Rank.KOENIG, Rank.UNTER, Rank.NEUN, Rank.ACHT, Rank.SIEBEN]
+                trumpf_suit_order = [self.suit] if self.suit else []
+        if trick_suit and trick_suit not in trumpf_suit_order:
+            trumpf_suit_order.append(trick_suit)
+        return trumpf_rank_order, rest_rank_order, trumpf_suit_order
+    
+    def highest_card(self, cards: list[Card], trick_suit: Suit | None = None) -> Card:
+        trumpf_rank_order, rest_rank_order, trumpf_suit_order = self.get_rank_suit_order(trick_suit)
+        def card_sort_key(card: Card):
+            if card.rank in trumpf_rank_order:
+                return (0, trumpf_rank_order.index(card.rank), card.suit)
+            elif card.suit in trumpf_suit_order:
+                return (1, trumpf_suit_order.index(card.suit), rest_rank_order.index(card.rank))
+            else:
+                return (2, rest_rank_order.index(card.rank))
+        return min(cards, key=card_sort_key)
 
     def value(self) -> int:
         match self.game_mode_type:

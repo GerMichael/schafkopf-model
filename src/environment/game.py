@@ -1,8 +1,8 @@
 
-from environment.card import Card
-from environment.deck import Deck
-from environment.game_modes import GameMode, GameModeType
-from environment.game_rules import GameSpec
+from src.environment.card import Card
+from src.environment.deck import Deck
+from src.environment.game_modes import GameMode, GameModeType
+from src.environment.game_rules import GameSpec
 
 
 class Player:
@@ -77,11 +77,5 @@ class Game:
     
     @staticmethod
     def get_winning_card(trick: Trick, game_mode: GameMode) -> Card:
-        trumpf_cards = [c for _, c in trick.cards if game_mode.is_card_trumpf(c)]
-        if trumpf_cards:
-            return max(trumpf_cards)
-        
-        lead_suit = trick.get_leading_card().suit
-        lead_suit_cards = [c for _, c in trick.cards if c.suit == lead_suit]
-        return max(lead_suit_cards)
+        return game_mode.highest_card([c for _, c in trick.cards]) 
     
