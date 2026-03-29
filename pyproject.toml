@@ -5,9 +5,7 @@ description = "Reinforcement learning opponent for the Bavarian card game Schafk
 requires-python = ">=3.11"
 
 dependencies = [
-    "numpy>=2.4.3",
     "pyyaml>=6.0.3",
-    "torch>=2.11.0",
 ]
 
 [project.optional-dependencies]
