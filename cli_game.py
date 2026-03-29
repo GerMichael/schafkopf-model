@@ -18,6 +18,9 @@ _DIM = "\033[2m"
 _BOLD = "\033[1m"
 _RESET = "\033[0m"
 
+def _format_suit(suit: Suit) -> str:
+    color = _SUIT_COLORS[suit]
+    return f"{color}{suit.name}{_RESET}"
 
 def _format_card(card, valid = True) -> str:
     label = str(card)
@@ -112,6 +115,11 @@ class CliGame:
             except ValueError:
                 print("Please enter a number.")
 
+    def _on_teams_found(self, playing_team: list[Player], defending_team: list[Player]):
+        playing_names = ", ".join(p.name for p in playing_team)
+        defending_names = ", ".join(p.name for p in defending_team)
+        print(f"\nTeams revealed! Playing: {playing_names} | Defending: {defending_names}")
+
     def _print_results(self):
         total_winner_player = None
         total_won_points = 0
@@ -130,14 +138,17 @@ class CliGame:
         print(f"Using game config: {game_config}")
         player_names = self._get_player_names(game_config)
         self.game = Game(player_names)
+        self.game.on("teams_found", self._on_teams_found)
         self.players_order = list(self.game.players)
 
         player_that_want_to_play = self._ask_players_to_play(self.game.players)
         playing_player, game_mode = self._determine_game_mode(player_that_want_to_play)
-        self.game.set_game_mode(game_mode)
-        # TODO: Find teams for Sauspiel
+        self.game.set_game_mode(game_mode=game_mode, playing_player=playing_player)
+        
         if game_mode.game_mode_type == GameModeType.RAMSCH:
             print("\nNo one wants to play. Starting Ramsch.")
+        elif game_mode.game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
+            print(f"\n{playing_player.name} will play {_format_suit(game_mode.suit)} {game_mode.game_mode_type.name}.")
         else:
             print(f"\n{playing_player.name} will play {game_mode.game_mode_type.name}.")
 
