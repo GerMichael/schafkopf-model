@@ -2,7 +2,7 @@ import os
 
 import yaml
 
-from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GAME_MODE_TYPES_WITH_OPTIONAL_SUIT, GameMode, GameModeType
+from src.environment.game_modes import GAME_MODE_TYPES_WITH_SUIT, GAME_MODE_TYPES_WITH_OPTIONAL_SUIT, GameMode, GameModeType, get_highest_game_mode_type
 from src.environment.card import Card, Suit
 from src.environment.game import Game, Player
 from src.environment.game_rules import GameSpec
@@ -18,9 +18,11 @@ _DIM = "\033[2m"
 _BOLD = "\033[1m"
 _RESET = "\033[0m"
 
+
 def _format_suit(suit: Suit) -> str:
     color = _SUIT_COLORS[suit]
     return f"{color}{suit.name}{_RESET}"
+
 
 def _format_card(card, valid = True) -> str:
     label = str(card)
@@ -30,7 +32,14 @@ def _format_card(card, valid = True) -> str:
     return f"{_BOLD}{color}{label}{_RESET}"
 
 
+def _sort_cards_by_suit_and_rank_value(cards: list[Card]) -> list[Card]:
+    return sorted(cards, key=lambda c: (c.suit.value, c.rank.value))
+
+
 class CliGame:
+    _game: Game | None = None
+
+
     def _get_game_session_config(self) -> dict:
         config_path = os.path.join(os.getcwd(), "config", "game_session.yaml")
         if os.path.exists(config_path):
@@ -40,14 +49,16 @@ class CliGame:
                 return config
         return {}
     
+
     def _get_player_names(self, game_config: dict) -> list[str]:
         player_names = game_config.get("players", [])
         print(f"Found {len(player_names)} player names in config: {player_names}")
         if len(player_names) != GameSpec.NUM_PLAYERS:
-                print(f"Config file must contain exactly {GameSpec.NUM_PLAYERS} player names under 'players'. Falling back to manual input.")
-                player_names = self._ask_for_player_names()
+            print(f"Config file must contain exactly {GameSpec.NUM_PLAYERS} player names under 'players'. Falling back to manual input.")
+            player_names = self._ask_for_player_names()
         else:
             return player_names
+
 
     def _ask_for_player_names(self) -> list[str]:
         player_names = []
@@ -56,10 +67,11 @@ class CliGame:
             player_names.append(name)
         return player_names
     
+
     def _ask_players_to_play(self, players: list[Player]) -> list[tuple[Player, bool]]:
         player_choices = []
         for player in players:
-            sorted_cards = sorted(player.hand_cards)
+            sorted_cards = _sort_cards_by_suit_and_rank_value(player.hand_cards)
             self._prompt_cards(sorted_cards, valid_cards=player.hand_cards)
             while True:
                 choice = input(f"{player.name}, do you want to play? (y/n): ").strip().lower()
@@ -69,6 +81,7 @@ class CliGame:
                 print("Invalid input. Please enter 'y' or 'n'.")
         return player_choices
     
+
     def _ask_game_mode_type(self, player: Player) -> GameModeType:
         playable_modes = sorted((gmt for gmt in GameModeType if gmt != GameModeType.RAMSCH), key=lambda g: g.value)
         sauspiel_valid_suits = GameMode.get_suits(GameModeType.SAUSPIEL, player.hand_cards)
@@ -80,6 +93,7 @@ class CliGame:
             if choice in valid:
                 return GameModeType(int(choice))
             print(f"Invalid input. Please enter one of: {', '.join(sorted(valid))}.")
+
 
     def _ask_suit(self, player: Player, game_mode_type: GameModeType) -> Suit | None:
         optional = game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT
@@ -96,6 +110,7 @@ class CliGame:
                 return None
             print("Invalid input.")
 
+
     def _determine_game_mode(self, player_choices: list[tuple[Player, bool]]) -> tuple[Player | None, GameMode]:
         player_game_mode_types: list[tuple[Player, GameModeType | None]] = []
         for player, wants_to_play in player_choices:
@@ -104,7 +119,7 @@ class CliGame:
             else:
                 player_game_mode_types.append((player, self._ask_game_mode_type(player)))
 
-        highest_game_mode_type = GameModeType.highest([gm for _, gm in player_game_mode_types])
+        highest_game_mode_type = get_highest_game_mode_type([gm for _, gm in player_game_mode_types])
         playing_player = next((p for p, gmt in player_game_mode_types if gmt == highest_game_mode_type), None)
 
         suit = None
@@ -113,17 +128,23 @@ class CliGame:
 
         return playing_player, GameMode(highest_game_mode_type, suit)
     
+
     def _prompt_cards(self, cards: list[Card], valid_cards: list[Card]):
-        print(f"Your cards:")
+        print("Your cards:")
         for idx, card in enumerate(cards):
             is_valid = card in valid_cards
             formatted = _format_card(card, is_valid)
             marker = " " if is_valid else "x"
             print(f"  [{marker}] {idx}: {formatted}")
     
-    def _prompt_card_choice(self, player: Player):
-        valid_cards = set(Game.get_valid_cards(player.hand_cards, self.game.current_trick.get_leading_card(), self.game.game_mode))
-        sorted_cards = sorted(player.hand_cards)
+
+    def _prompt_card_choice_to_play(self, player: Player):
+        valid_cards = Game.get_valid_cards(player.hand_cards, self._game.get_current_trick().get_leading_card(), self._game.game_mode)
+        trumpf_cards = [c for c in player.hand_cards if self._game.game_mode.is_card_trumpf(c)]
+        non_trumpf_cards = [c for c in player.hand_cards if not self._game.game_mode.is_card_trumpf(c)]
+        sorted_non_trumpf_cards = _sort_cards_by_suit_and_rank_value(non_trumpf_cards)
+        sorted_trumpf_cards = _sort_cards_by_suit_and_rank_value(trumpf_cards)
+        sorted_cards = sorted_non_trumpf_cards + sorted_trumpf_cards
         self._prompt_cards(sorted_cards, valid_cards)
         while True:
             try:
@@ -134,18 +155,20 @@ class CliGame:
             except ValueError:
                 print("Please enter a number.")
 
+
     def _on_teams_found(self, playing_team: list[Player], defending_team: list[Player]):
         playing_names = ", ".join(p.name for p in playing_team)
         defending_names = ", ".join(p.name for p in defending_team)
         print(f"\nTeams revealed! Playing: {playing_names} | Defending: {defending_names}")
 
+
     def _print_results(self):
         total_winner_player = None
         total_won_points = 0
-        for player in self.game.players:
-            player_points = sum(c.value() for trick in player.won_tricks for _, c in trick.cards)
+        for player in self._game.players_in_order:
+            player_points = sum(c.value() for trick in self._game.tricks for p, c in trick.player_cards if trick.get_winner_player(self._game.game_mode) == player)
             print(f"{player.name} scored {player_points} points.")
-            if self.game.game_mode.game_mode_type != GameModeType.RAMSCH:
+            if self._game.game_mode.game_mode_type != GameModeType.RAMSCH:
                 if total_winner_player is None or player_points > total_won_points:
                     total_won_points = player_points
                     total_winner_player = player
@@ -157,17 +180,17 @@ class CliGame:
         if total_winner_player:
             print(f"\n{total_winner_player.name} wins the game with {total_won_points} points!")
 
+
     def run(self):
         game_config = self._get_game_session_config()
         print(f"Using game config: {game_config}")
         player_names = self._get_player_names(game_config)
-        self.game = Game(player_names)
-        self.game.on("teams_found", self._on_teams_found)
-        self.players_order = list(self.game.players)
+        self._game = Game(player_names)
+        self._game.on("teams_found", self._on_teams_found)
 
-        player_that_want_to_play = self._ask_players_to_play(self.game.players)
+        player_that_want_to_play = self._ask_players_to_play(self._game.players_in_order)
         playing_player, game_mode = self._determine_game_mode(player_that_want_to_play)
-        self.game.set_game_mode(game_mode=game_mode, playing_player=playing_player)
+        self._game.set_game_mode(game_mode=game_mode, playing_player=playing_player)
         
         if game_mode.game_mode_type == GameModeType.RAMSCH:
             print("\nNo one wants to play. Starting Ramsch.")
@@ -181,19 +204,18 @@ class CliGame:
         num_rounds = GameSpec.NUM_CARDS // GameSpec.NUM_PLAYERS
         for round_num in range(num_rounds):
             print(f"\n--- Round {round_num + 1} ---")
-            self.game.clear_trick()
 
-            for player in self.players_order:
+            for player in self._game.players_in_order:
                 print(f"\nIt's your turn, {player.name}.")
-                chosen = self._prompt_card_choice(player)
-                self.game.play_card(player, chosen)
+                chosen = self._prompt_card_choice_to_play(player)
+                self._game.play_card(player, chosen)
                 print(f"  -> {player.name} plays {_format_card(chosen)}")
 
-            winner_person, winner_card = self.game.evaluate_trick()
-            won_points = sum(c.value() for _, c in self.game.current_trick.cards)
+            winner_person, winner_card = self._game.evaluate_trick()
+            won_points = sum(c.value() for _, c in self._game.get_current_trick().player_cards)
             print(f"\n{winner_person.name} wins the trick with {_format_card(winner_card)} ({won_points} points)!")
-            winner_idx = self.players_order.index(winner_person)
-            self.players_order = self.players_order[winner_idx:] + self.players_order[:winner_idx]
+            
+            self._game.start_new_trick()
 
         print("\nGame over!")
         self._print_results()

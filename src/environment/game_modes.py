@@ -12,38 +12,53 @@ class GameModeType(IntEnum):
     GEIER = 3
     WENZ = 4
 
-    @staticmethod
-    def highest(game_mode_types: list[GameModeType | None]) -> GameModeType:
-        choices = [gmt for gmt in game_mode_types if gmt is not None]
-        if not choices:
-            return GameModeType.RAMSCH
-        return max(choices)
 
 GAME_MODE_TYPES_WITH_SUIT = {GameModeType.SAUSPIEL}
 GAME_MODE_TYPES_WITH_OPTIONAL_SUIT = {GameModeType.SOLO}
 SAUSPIEL_VALID_SUITS = {Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN}
 
+
+def get_highest_game_mode_type(game_mode_types: list[GameModeType | None]) -> GameModeType:
+    choices = [gmt for gmt in game_mode_types if gmt is not None]
+    if not choices:
+        return GameModeType.RAMSCH
+    return max(choices)
+
+
 class GameMode:
-    game_mode_type: GameModeType
-    suit: Suit | None = None
+    _game_mode_type: GameModeType
+    _suit: Suit | None = None
+
 
     def __init__(self, game_mode_type: GameModeType, suit: Suit | None = None):
-        self.game_mode_type = game_mode_type
+        self._game_mode_type = game_mode_type
         if game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
             if suit is None:
                 raise ValueError(f"Suit must be specified for {game_mode_type.name} mode.")
             if game_mode_type == GameModeType.SAUSPIEL and suit not in SAUSPIEL_VALID_SUITS:
                 raise ValueError(f"Suit {suit.name} is not valid for Sauspiel (Herz is always trumpf).")
-            self.suit = suit
+            self._suit = suit
         elif game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
-            self.suit = suit
+            self._suit = suit
         else:
             if suit is not None:
                 raise ValueError(f"Suit must not be specified for {game_mode_type.name} mode.")
-        
+    
+
+    @property
+    def game_mode_type(self) -> GameModeType:
+        return self._game_mode_type
+    
+
+    @property
+    def suit(self) -> Suit | None:
+        return self._suit
+
+
     def is_card_trumpf(self, card: Card) -> bool:
         trumpf_rank_order, _, trumpf_suit_order = self.get_rank_suit_order()
         return card.rank in trumpf_rank_order or card.suit in trumpf_suit_order
+    
 
     @staticmethod
     def get_suits(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
@@ -64,6 +79,7 @@ class GameMode:
             return sorted(suits, key=lambda s: s.value)
         return list(Suit)
     
+
     def get_rank_suit_order(self, trick_suit: Suit | None = None) -> tuple[list[Rank], list[Rank], list[Suit]]:
         match self.game_mode_type:
             case GameModeType.SAUSPIEL | GameModeType.RAMSCH:
@@ -85,7 +101,8 @@ class GameMode:
         if trick_suit and trick_suit not in trumpf_suit_order:
             trumpf_suit_order.append(trick_suit)
         return trumpf_rank_order, rest_rank_order, trumpf_suit_order
-    
+
+
     def highest_card(self, cards: list[Card], trick_suit: Suit | None = None) -> Card:
         trumpf_rank_order, rest_rank_order, trumpf_suit_order = self.get_rank_suit_order(trick_suit)
         def card_sort_key(card: Card):
@@ -97,5 +114,8 @@ class GameMode:
                 return (2, rest_rank_order.index(card.rank))
         return min(cards, key=card_sort_key)
 
-    def __lt__(self, other: GameMode) -> bool:
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, GameMode):
+            return NotImplementedError()
         return self.game_mode_type < other.game_mode_type

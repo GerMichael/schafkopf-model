@@ -21,12 +21,24 @@ class Rank(IntEnum):
     SAU = 8
 
 class Card:
-    suit: Suit
-    rank: Rank
+    _suit: Suit
+    _rank: Rank
+
 
     def __init__(self, suit: Suit, rank: Rank):
-        self.suit = suit
-        self.rank = rank
+        self._suit = suit
+        self._rank = rank
+
+
+    @property
+    def suit(self):
+        return self._suit
+
+
+    @property
+    def rank(self):
+        return self._rank
+
 
     def value(self) -> int:
         match self.rank:
@@ -47,21 +59,14 @@ class Card:
             case Rank.SAU:
                 return 11
 
+
     def __str__(self):
         return f"{self.suit.name} {self.rank.name}"
 
+
     def __repr__(self):
         return f"{self.suit.name} {self.rank.name}"
-
-    def __lt__(self, other: "Card") -> bool:
-        if self.suit != other.suit:
-            return self.suit < other.suit
-        return self.rank < other.rank
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Card):
-            return False
-        return self.suit == other.suit and self.rank == other.rank
+    
 
     def __hash__(self) -> int:
         return hash((self.suit, self.rank))
