@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from src.environment.card import Card, Rank
 from src.environment.deck import Deck
-from src.environment.game_exceptions import GameInvalidCardException, GameInvalidGameModeException, GameNoPlayingPlayerException, GamePlayerAlreadyInTrickException, GamePlayerAlreadyPlayedCardException, GamePlayerHasNotCardException, GamePlayersCountException, GameTrickNotCompleteException, GameNotPlayersTurnException
+from src.environment.game_exceptions import GameInvalidCardException, GameMissingNonSauNonTrumpfCardForSauspielSuitException, GameNoPlayingPlayerException, GamePlayerAlreadyInTrickException, GamePlayerAlreadyPlayedCardException, GamePlayerHasNotCardException, GamePlayersCountException, GameTrickNotCompleteException, GameNotPlayersTurnException
 from src.environment.game_modes import GameMode, GameModeType
 from src.environment.game_rules import GameSpec
 
@@ -117,7 +117,7 @@ class Game:
                 for c in playing_player.hand_cards
             )
             if not any_non_trumpf_or_sau:
-                raise GameInvalidGameModeException(game_mode=game_mode, hand_cards=playing_player.hand_cards)
+                raise GameMissingNonSauNonTrumpfCardForSauspielSuitException(game_mode=game_mode, hand_cards=playing_player.hand_cards)
         self._game_mode = game_mode
         if self._game_mode.game_mode_type != GameModeType.RAMSCH:
             if playing_player is None:

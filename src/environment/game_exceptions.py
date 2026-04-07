@@ -60,10 +60,10 @@ class GameInvalidCardException(GameException):
         return self._valid_cards
     
 
-class GameInvalidGameModeException(GameException):
+class GameMissingNonSauNonTrumpfCardForSauspielSuitException(GameException):
     def __init__(self, game_mode: GameMode, hand_cards: list[Card], message: str | None = None):
         if message is None:
-            message = f"Invalid game mode {game_mode.game_mode_type.name} with suit {game_mode.suit} for hand cards: {', '.join(str(c) for c in hand_cards)}."
+            message = f"Non-trumpf and non-Sau card is missing for game mode {game_mode.game_mode_type.name} with suit {game_mode.suit} in hand cards: {', '.join(str(c) for c in hand_cards)}."
         super().__init__(message=message)
         self._game_mode = game_mode
         self._hand_cards = hand_cards
