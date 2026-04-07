@@ -3,6 +3,7 @@
 from enum import IntEnum
 
 from src.environment.card import Card, Suit, Rank
+from src.environment.game_exceptions import GameModeInvalidSuitException
 
 
 class GameModeType(IntEnum):
@@ -34,15 +35,15 @@ class GameMode:
         self._game_mode_type = game_mode_type
         if game_mode_type in GAME_MODE_TYPES_WITH_SUIT:
             if suit is None:
-                raise ValueError(f"Suit must be specified for {game_mode_type.name} mode.")
+                raise GameModeInvalidSuitException(game_mode=self, message=f"Suit must be specified for {game_mode_type.name} mode.")
             if game_mode_type == GameModeType.SAUSPIEL and suit not in SAUSPIEL_VALID_SUITS:
-                raise ValueError(f"Suit {suit.name} is not valid for Sauspiel (Herz is always trumpf).")
+                raise GameModeInvalidSuitException(game_mode=self, message=f"Suit {suit.name} is not valid for Sauspiel (Herz is always trumpf).")
             self._suit = suit
         elif game_mode_type in GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
             self._suit = suit
         else:
             if suit is not None:
-                raise ValueError(f"Suit must not be specified for {game_mode_type.name} mode.")
+                raise GameModeInvalidSuitException(game_mode=self, message=f"Suit must not be specified for {game_mode_type.name} mode.")
     
 
     @property

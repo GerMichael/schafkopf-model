@@ -80,3 +80,15 @@ class GameMissingNonSauNonTrumpfCardForSauspielSuitException(GameException):
 class GameTrickNotCompleteException(GameException):
     def __init__(self, message="Trick is not complete, yet."):
         super().__init__(message=message)
+
+
+class GameModeInvalidSuitException(GameException):
+    def __init__(self, game_mode: GameMode, message: str | None = None):
+        if message is None:
+            message = f"Invalid suit {game_mode.suit} for game mode {game_mode.game_mode_type.name}."
+        super().__init__(message=message)
+        self._game_mode = game_mode
+
+    @property
+    def game_mode(self) -> GameMode:
+        return self._game_mode
