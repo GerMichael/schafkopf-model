@@ -197,15 +197,8 @@ class Game:
                 raise GameNoPlayingPlayerException()
         
         if game_mode.game_mode_type == GameModeType.SAUSPIEL:
-            any_non_trumpf_or_non_sau_of_right_suit = any(
-                (
-                    c.suit == game_mode.suit and 
-                    c.rank != Rank.SAU and 
-                    not game_mode.is_card_trumpf(c)
-                ) 
-                for c in playing_player.hand_cards
-            )
-            if not any_non_trumpf_or_non_sau_of_right_suit:
+            has_non_sau_and_non_trumpf_cards_for_suit = game_mode.has_non_sau_and_non_trumpf_cards_for_suit(playing_player.hand_cards)
+            if not has_non_sau_and_non_trumpf_cards_for_suit:
                 raise GameMissingNonSauNonTrumpfCardForSauspielSuitException(game_mode=game_mode, hand_cards=playing_player.hand_cards)
 
 

@@ -74,21 +74,29 @@ class GameMode:
         return card.rank in trumpf_rank_order or card.suit in trumpf_suit_order
     
 
+    def has_non_sau_and_non_trumpf_cards_for_suit(self, cards: list[Card]) -> bool:
+        """
+        Returns a boolean indicating whether the game mode has any cards of its suit that are not the Sau and not trumpf.
+        This method is useful to check if a list of cards contains a non-trumpf non-Sau card of the game mode's suit, so a Sauspiel of that suit can be played.
+        """
+        return any(
+                    (
+                        c.suit == self.suit
+                        and c.rank != Rank.SAU 
+                        and not self.is_card_trumpf(c)
+                    )
+                    for c in cards
+                )
+
+
     @staticmethod
     def get_suits(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
         if game_mode_type == GameModeType.SAUSPIEL:
-            arbitrary_sauspiel = GameMode(GameModeType.SAUSPIEL, Suit.EICHEL)
             suits = []
             for suit in SAUSPIEL_VALID_SUITS:
+                sauspiel_of_suit = GameMode(GameModeType.SAUSPIEL, suit)
                 has_sau = any(c.suit == suit and c.rank == Rank.SAU for c in hand_cards)
-                has_non_sau = any(
-                    (
-                        c.suit == suit 
-                        and c.rank != Rank.SAU 
-                        and not arbitrary_sauspiel.is_card_trumpf(c)
-                    )
-                    for c in hand_cards
-                )
+                has_non_sau = sauspiel_of_suit.has_non_sau_and_non_trumpf_cards_for_suit(hand_cards)
                 if not has_sau and has_non_sau:
                     suits.append(suit)
             return sorted(suits, key=lambda s: s.value)
