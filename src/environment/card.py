@@ -70,3 +70,9 @@ class Card:
 
     def __hash__(self) -> int:
         return hash((self.suit, self.rank))
+
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Card):
+            return NotImplemented
+        return self.suit == other.suit and self.rank == other.rank

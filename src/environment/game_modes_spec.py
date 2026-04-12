@@ -1,11 +1,11 @@
 import pytest
-from src.environment.game_modes import GameMode, GameModeType
+from src.environment.game_modes import GameMode, GameModeInvalidSuitException, GameModeType
 from src.environment.card import Card, Suit, Rank
 
 
 class TestGameModeValidation:
     def test_sauspiel_rejects_herz(self):
-        with pytest.raises(ValueError, match="not valid for Sauspiel"):
+        with pytest.raises(GameModeInvalidSuitException):
             GameMode(GameModeType.SAUSPIEL, Suit.HERZ)
 
     @pytest.mark.parametrize("suit", [Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN])
