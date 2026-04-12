@@ -56,8 +56,7 @@ class CliGame:
         if len(player_names) != GameSpec.NUM_PLAYERS:
             print(f"Config file must contain exactly {GameSpec.NUM_PLAYERS} player names under 'players'. Falling back to manual input.")
             player_names = self._ask_for_player_names()
-        else:
-            return player_names
+        return player_names
 
 
     def _ask_for_player_names(self) -> list[str]:
