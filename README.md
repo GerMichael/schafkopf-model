@@ -31,7 +31,7 @@ The order of value is like this: Ramsch < Sauspiel < Solo < Geier < Wenz
 
 ## Setup
 
-This python projects is set up via [astral's `uv`](https://docs.astral.sh/uv/) package manager.
+This python project is set up via [astral's `uv`](https://docs.astral.sh/uv/) package manager.
 
 After installation of `uv`, execute the following to install and build the dependencies
 
