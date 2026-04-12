@@ -132,7 +132,13 @@ class Game:
 
     def __init__(self, player_names: list[str]):
         self._listeners: dict[str, list[Callable[..., Any]]] = defaultdict(list)
-        self.setup_new_game(player_names)
+
+        self._validate_amount_players(len(player_names))
+        self._tricks = [Trick()]
+        player_cards = Deck.get_shuffled_player_cards()
+        self._players_in_order = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, player_cards)]
+        self._playing_team = []
+        self._defending_team = []
 
     @property
     def players_in_order(self):
@@ -167,14 +173,6 @@ class Game:
     def defending_team(self):
         return self._defending_team
     
-    def setup_new_game(self, player_names: list[str]):
-        self._validate_amount_players(len(player_names))
-        self._tricks = [Trick()]
-        player_cards = Deck.get_shuffled_player_cards()
-        self._players_in_order = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, player_cards)]
-        self._playing_team = []
-        self._defending_team = []
-
 
     def _validate_amount_players(self, amount_players: int):
         if amount_players != GameSpec.NUM_PLAYERS:
@@ -193,7 +191,8 @@ class Game:
 
 
     def _validate_played_game_mode(self, game_mode: GameMode, playing_player: Player | None):
-        if self._game_mode.game_mode_type != GameModeType.RAMSCH:
+        # Note: Not playing Ramsch implies playing either Sauspiel or something else (Solo...), but we check explicitly here to be safe for the next validation step.
+        if game_mode.game_mode_type != GameModeType.RAMSCH or game_mode.game_mode_type == GameModeType.SAUSPIEL:
             if playing_player is None:
                 raise GameNoPlayingPlayerException()
         
