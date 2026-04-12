@@ -77,6 +77,7 @@ class GameMode:
     @staticmethod
     def get_suits(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
         if game_mode_type == GameModeType.SAUSPIEL:
+            arbitrary_sauspiel = GameMode(GameModeType.SAUSPIEL, Suit.EICHEL)
             suits = []
             for suit in SAUSPIEL_VALID_SUITS:
                 has_sau = any(c.suit == suit and c.rank == Rank.SAU for c in hand_cards)
@@ -84,7 +85,7 @@ class GameMode:
                     (
                         c.suit == suit 
                         and c.rank != Rank.SAU 
-                        and not GameMode.is_card_trumpf(GameMode(game_mode_type, Suit.EICHEL), c)
+                        and not arbitrary_sauspiel.is_card_trumpf(c)
                     )
                     for c in hand_cards
                 )
