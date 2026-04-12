@@ -3,7 +3,7 @@
 from enum import IntEnum
 
 from src.environment.card import Card, Suit, Rank
-from src.environment.game_exceptions import GameModeInvalidSuitException
+from src.environment.game_exception import GameException
 
 
 class GameModeType(IntEnum):
@@ -24,6 +24,19 @@ def get_highest_game_mode_type(game_mode_types: list[GameModeType | None]) -> Ga
     if not choices:
         return GameModeType.RAMSCH
     return max(choices)
+
+
+class GameModeInvalidSuitException(GameException):
+    def __init__(self, game_mode, message: str | None = None):
+        if message is None:
+            message = f"Invalid suit {game_mode.suit} for game mode {game_mode.game_mode_type.name}."
+        super().__init__(message=message)
+        self._game_mode = game_mode
+
+    @property
+    def game_mode(self):
+        return self._game_mode
+    
 
 
 class GameMode:
@@ -118,5 +131,6 @@ class GameMode:
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, GameMode):
-            return NotImplementedError()
+            raise NotImplementedError()
         return self.game_mode_type < other.game_mode_type
+
