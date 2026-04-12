@@ -182,12 +182,12 @@ class Game:
     def set_game_mode(self, game_mode: GameMode, playing_player: Player | None = None):
         self._validate_played_game_mode(game_mode, playing_player)
             
+        self._game_mode = game_mode
+
         if self._game_mode.game_mode_type != GameModeType.RAMSCH:
             # Initially, in Sauspiel it is unclear who the partner is, so we assign all non-playing players to the other team.
             self._playing_team = [playing_player]
             self._defending_team = [p for p in self._players_in_order if p != playing_player]
-        
-        self._game_mode = game_mode
 
 
     def _validate_played_game_mode(self, game_mode: GameMode, playing_player: Player | None):
