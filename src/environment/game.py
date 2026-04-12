@@ -168,8 +168,7 @@ class Game:
         return self._defending_team
     
     def setup_new_game(self, player_names: list[str]):
-        if len(player_names) != GameSpec.NUM_PLAYERS:
-            raise GamePlayersCountException()
+        self._validate_amount_players(len(player_names))
         self._tricks = [Trick()]
         player_cards = Deck.get_shuffled_player_cards()
         self._players_in_order = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, player_cards)]
@@ -177,7 +176,27 @@ class Game:
         self._defending_team = []
 
 
+    def _validate_amount_players(self, amount_players: int):
+        if amount_players != GameSpec.NUM_PLAYERS:
+            raise GamePlayersCountException()
+
+
     def set_game_mode(self, game_mode: GameMode, playing_player: Player | None = None):
+        self._validate_played_game_mode(game_mode, playing_player)
+            
+        if self._game_mode.game_mode_type != GameModeType.RAMSCH:
+            # Initially, in Sauspiel it is unclear who the partner is, so we assign all non-playing players to the other team.
+            self._playing_team = [playing_player]
+            self._defending_team = [p for p in self._players_in_order if p != playing_player]
+        
+        self._game_mode = game_mode
+
+
+    def _validate_played_game_mode(self, game_mode: GameMode, playing_player: Player | None):
+        if self._game_mode.game_mode_type != GameModeType.RAMSCH:
+            if playing_player is None:
+                raise GameNoPlayingPlayerException()
+        
         if game_mode.game_mode_type == GameModeType.SAUSPIEL:
             any_non_trumpf_or_sau = any(
                 (
@@ -189,13 +208,6 @@ class Game:
             )
             if not any_non_trumpf_or_sau:
                 raise GameMissingNonSauNonTrumpfCardForSauspielSuitException(game_mode=game_mode, hand_cards=playing_player.hand_cards)
-        self._game_mode = game_mode
-        if self._game_mode.game_mode_type != GameModeType.RAMSCH:
-            if playing_player is None:
-                raise GameNoPlayingPlayerException()
-            # Initially, in Sauspiel it is unclear who the partner is, so we assign all non-playing players to the other team.
-            self._playing_team = [playing_player]
-            self._defending_team = [p for p in self._players_in_order if p != playing_player]
 
 
     def on(self, event: str, callback: Callable[..., Any]):
@@ -213,6 +225,19 @@ class Game:
 
 
     def play_card(self, player: Player, card: Card):
+        self._validate_played_card(player, card)
+        player.remove_hand_card(card)
+        self.get_current_trick().player_cards.append((player, card))
+
+        if self._game_mode.game_mode_type == GameModeType.SAUSPIEL:
+            is_card_searched_sau = card.rank == Rank.SAU and card.suit == self._game_mode.suit
+            if is_card_searched_sau:
+                partner = player
+                self.update_playing_team([self._playing_team[0], partner])
+                self._emit("teams_found", playing_team=self._playing_team, defending_team=self._defending_team)
+
+
+    def _validate_played_card(self, player: Player, card: Card):
         num_played_cards = len(self.get_current_trick().player_cards)
         current_player = self._players_in_order[num_played_cards]
         if player != current_player:
@@ -225,15 +250,6 @@ class Game:
         valid_cards = Game.get_valid_cards(player.hand_cards, self.get_current_trick().get_leading_card(), self.game_mode)
         if card not in valid_cards:
             raise GameInvalidCardException(card=card, valid_cards=valid_cards)
-        player.remove_hand_card(card)
-        self.get_current_trick().player_cards.append((player, card))
-
-        if self._game_mode.game_mode_type == GameModeType.SAUSPIEL:
-            is_card_searched_sau = card.rank == Rank.SAU and card.suit == self._game_mode.suit
-            if is_card_searched_sau:
-                partner = player
-                self.update_playing_team([self._playing_team[0], partner])
-                self._emit("teams_found", playing_team=self._playing_team, defending_team=self._defending_team)
 
 
     def start_new_trick(self):
