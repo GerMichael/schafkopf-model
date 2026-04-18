@@ -283,3 +283,81 @@ class TestGameFlow:
                 winning_player, winning_card = game.evaluate_current_trick()
                 print(f"Trick winner: {winning_player.name} with {winning_card}")
                 game.start_new_trick()
+
+
+    def test_sauspiel_team_assignment_and_reveal(self):
+        alice_cards = [
+            Card(suit=Suit.EICHEL, rank=Rank.SIEBEN),
+            Card(suit=Suit.EICHEL, rank=Rank.ACHT),
+            Card(suit=Suit.EICHEL, rank=Rank.NEUN),
+            Card(suit=Suit.EICHEL, rank=Rank.KOENIG),
+            Card(suit=Suit.GRAS, rank=Rank.SIEBEN),
+            Card(suit=Suit.GRAS, rank=Rank.ACHT),
+            Card(suit=Suit.GRAS, rank=Rank.NEUN),
+            Card(suit=Suit.GRAS, rank=Rank.KOENIG),
+        ]
+        bob_cards = [
+            Card(suit=Suit.SCHELLEN, rank=Rank.SIEBEN),
+            Card(suit=Suit.SCHELLEN, rank=Rank.ACHT),
+            Card(suit=Suit.SCHELLEN, rank=Rank.NEUN),
+            Card(suit=Suit.SCHELLEN, rank=Rank.KOENIG),
+            Card(suit=Suit.HERZ, rank=Rank.SIEBEN),
+            Card(suit=Suit.HERZ, rank=Rank.ACHT),
+            Card(suit=Suit.HERZ, rank=Rank.NEUN),
+            Card(suit=Suit.HERZ, rank=Rank.KOENIG),
+        ]
+        charlie_cards = [
+            Card(suit=Suit.EICHEL, rank=Rank.ZEHN),
+            Card(suit=Suit.EICHEL, rank=Rank.SAU),
+            Card(suit=Suit.EICHEL, rank=Rank.UNTER),
+            Card(suit=Suit.EICHEL, rank=Rank.OBER),
+            Card(suit=Suit.GRAS, rank=Rank.ZEHN),
+            Card(suit=Suit.GRAS, rank=Rank.SAU),
+            Card(suit=Suit.GRAS, rank=Rank.UNTER),
+            Card(suit=Suit.GRAS, rank=Rank.OBER),
+        ]
+        diana_cards = [
+            Card(suit=Suit.SCHELLEN, rank=Rank.ZEHN),
+            Card(suit=Suit.SCHELLEN, rank=Rank.SAU),
+            Card(suit=Suit.SCHELLEN, rank=Rank.UNTER),
+            Card(suit=Suit.SCHELLEN, rank=Rank.OBER),
+            Card(suit=Suit.HERZ, rank=Rank.ZEHN),
+            Card(suit=Suit.HERZ, rank=Rank.SAU),
+            Card(suit=Suit.HERZ, rank=Rank.UNTER),
+            Card(suit=Suit.HERZ, rank=Rank.OBER),
+        ]
+
+        game = Game(
+            player_names=["Alice", "Bob", "Charlie", "Diana"], 
+            player_cards=[alice_cards, bob_cards, charlie_cards, diana_cards]
+        )
+
+        alice, bob, charlie, diana = game.players_in_sitting_order
+        
+        game.set_game_mode(
+            game_mode=GameMode(GameModeType.SAUSPIEL, Suit.EICHEL), 
+            playing_player=alice
+        )
+        
+        assert game.playing_team == [alice]
+        assert game.defending_team == [bob, charlie, diana]
+        
+        events = []
+        def on_teams_found(**kwargs):
+            events.append(kwargs)
+            
+        game.on("teams_found", on_teams_found)
+        
+        game.play_card(alice, Card(Suit.EICHEL, Rank.SIEBEN))
+        assert len(events) == 0
+        game.play_card(bob, Card(Suit.SCHELLEN, Rank.SIEBEN))
+        assert len(events) == 0
+        game.play_card(charlie, Card(Suit.EICHEL, Rank.SAU))
+        assert len(events) == 1
+        
+        event_args = events[0]
+        assert event_args["playing_team"] == [alice, charlie]
+        assert event_args["defending_team"] == [bob, diana]
+        
+        assert game.playing_team == [alice, charlie]
+        assert game.defending_team == [bob, diana]
