@@ -36,20 +36,34 @@ class Player:
         self._hand_cards.remove(card)
 
 
+class GameEmptyTrickException(GameException):
+    def __init__(self, message="Trick has no cards played yet."):
+        super().__init__(message=message)
+
+
 class Trick:
-    player_cards: list[tuple[Player, Card]]
+    played_card_by_players: list[tuple[Player, Card]]
 
     def __init__(self):
-        self.player_cards = []
+        self.played_card_by_players = []
 
-    def get_leading_card(self) -> Card | None:
-        return self.player_cards[0][1] if self.player_cards else None
+    def get_first_card(self) -> Card | None:
+        return self.played_card_by_players[0][1] if self.played_card_by_players else None
     
     def get_winner_player(self, game_mode: GameMode) -> Player:
-        leading_card = self.get_leading_card()
-        winning_card = game_mode.highest_card([c for _, c in self.player_cards], trick_suit=leading_card.suit if leading_card else None)
-        return next(p for p, c in self.player_cards if c == winning_card)
-
+        leading_card = self.get_first_card()
+        winning_card = game_mode.highest_card([c for _, c in self.played_card_by_players], trick_suit=leading_card.suit if leading_card else None)
+        return next(p for p, c in self.played_card_by_players if c == winning_card)
+    
+    def get_winning_card(self, game_mode: GameMode) -> Card:
+        leading_card = self.get_first_card()
+        trick_suit = leading_card.suit if leading_card else None
+        if len(self.played_card_by_players) == 0:
+            raise GameEmptyTrickException()
+        return game_mode.highest_card([c for _, c in self.played_card_by_players], trick_suit=trick_suit) 
+    
+    def is_empty(self):
+        return len(self.played_card_by_players) == 0
 
 
 class GamePlayersCountException(GameException):
@@ -124,35 +138,48 @@ class GameTrickNotCompleteException(GameException):
 
 
 class Game:
-    _players_in_order: list[Player]
+    _players_in_sitting_order: list[Player]
     _tricks: list[Trick]
     _game_mode: GameMode
     _playing_team: list[Player]
     _defending_team: list[Player]
 
-    def __init__(self, player_names: list[str]):
+    def __init__(self, player_names: list[str], player_cards: list[list[Card]] | None = None):
         self._listeners: dict[str, list[Callable[..., Any]]] = defaultdict(list)
 
         self._validate_amount_players(len(player_names))
         self._tricks = [Trick()]
-        player_cards = Deck.get_shuffled_player_cards()
-        self._players_in_order = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, player_cards)]
+        _player_cards = player_cards or Deck.get_shuffled_player_cards()
+        self._players_in_sitting_order = [Player(name=name, hand_cards=cards) for name, cards in zip(player_names, _player_cards)]
         self._playing_team = []
         self._defending_team = []
+    
 
     @property
-    def players_in_order(self):
-        return self._players_in_order
-    
+    def players_in_sitting_order(self):
+        """The initial sitting order of the players."""
+        return self._players_in_sitting_order    
 
-    def _set_start_player(self, start_player: Player):
-        new_start_player_index = self._players_in_order.index(start_player)
-        self._players_in_order = self._players_in_order[new_start_player_index:] + self._players_in_order[:new_start_player_index]
-    
+
+    def get_players_order_for_current_trick(self):
+        """Returns the players sitting order for the current trick, starting with the player who has to play first.
+        If no trick was played yet, the initial sitting order is returned."""
+        if len(self.tricks) == 0 or len(self.tricks) == 1:
+            return self._players_in_sitting_order
+        else:
+            last_trick = self.tricks[-2]
+            winning_card = last_trick.get_winning_card(self.game_mode)
+            winning_player = next(p for p, c in last_trick.played_card_by_players if c == winning_card)
+
+            new_start_player_index = self._players_in_sitting_order.index(winning_player)
+            trick_players_order = self._players_in_sitting_order[new_start_player_index:] + self._players_in_sitting_order[:new_start_player_index]
+            return trick_players_order
+
+
 
     @property
     def played_cards(self):
-        return [card for trick in self.tricks for _, card in trick.player_cards]
+        return [card for trick in self.tricks for _, card in trick.played_card_by_players]
     
     @property
     def tricks(self):
@@ -187,7 +214,7 @@ class Game:
         if self._game_mode.game_mode_type != GameModeType.RAMSCH:
             # Initially, in Sauspiel it is unclear who the partner is, so we assign all non-playing players to the other team.
             self._playing_team = [playing_player]
-            self._defending_team = [p for p in self._players_in_order if p != playing_player]
+            self._defending_team = [p for p in self._players_in_sitting_order if p != playing_player]
 
 
     def _validate_played_game_mode(self, game_mode: GameMode, playing_player: Player | None):
@@ -213,13 +240,13 @@ class Game:
 
     def update_playing_team(self, playing_team: list[Player]):
         self._playing_team = playing_team
-        self._defending_team = [p for p in self._players_in_order if p not in playing_team]
+        self._defending_team = [p for p in self._players_in_sitting_order if p not in playing_team]
 
 
     def play_card(self, player: Player, card: Card):
         self._validate_played_card(player, card)
         player.remove_hand_card(card)
-        self.get_current_trick().player_cards.append((player, card))
+        self.get_current_trick().played_card_by_players.append((player, card))
 
         if self._game_mode.game_mode_type == GameModeType.SAUSPIEL:
             is_card_searched_sau = card.rank == Rank.SAU and card.suit == self._game_mode.suit
@@ -230,45 +257,46 @@ class Game:
 
 
     def _validate_played_card(self, player: Player, card: Card):
-        num_played_cards = len(self.get_current_trick().player_cards)
-        current_player = self._players_in_order[num_played_cards]
+        num_played_cards = len(self.get_current_trick().played_card_by_players)
+        current_player_order = self.get_players_order_for_current_trick()
+        current_player = current_player_order[num_played_cards]
+
         if player != current_player:
-            raise GameNotPlayersTurnException()
+            raise GameNotPlayersTurnException(f"Not {player.name}'s turn. It is {current_player.name}'s turn to play.")
         if card in self.played_cards:
             raise GamePlayerAlreadyPlayedCardException()
-        players_played_in_current_trick = [p for p, _ in self.get_current_trick().player_cards]
+        players_played_in_current_trick = [p for p, _ in self.get_current_trick().played_card_by_players]
         if player in players_played_in_current_trick:
             raise GamePlayerAlreadyInTrickException()
-        valid_cards = Game.get_valid_cards(player.hand_cards, self.get_current_trick().get_leading_card(), self.game_mode)
+        valid_cards = Game.get_valid_cards(player.hand_cards, self.get_current_trick().get_first_card(), self.game_mode)
         if card not in valid_cards:
             raise GameInvalidCardException(card=card, valid_cards=valid_cards)
 
 
     def start_new_trick(self):
-        len_current_trick = len(self.get_current_trick().player_cards)
+        len_current_trick = len(self.get_current_trick().played_card_by_players)
         if len_current_trick != GameSpec.NUM_PLAYERS:
             raise GameTrickNotCompleteException()
-        self._set_start_player(self.get_current_trick().get_winner_player(self.game_mode))
         self._tricks.append(Trick())
 
 
-    def evaluate_trick(self):
-        winner_card = Game.get_winning_card(self.get_current_trick(), game_mode=self._game_mode)
-        winner_person = next(p for p, c in self.get_current_trick().player_cards if c == winner_card)
+    def evaluate_current_trick(self):
+        winner_card = self.get_current_trick().get_winning_card(game_mode=self._game_mode)
+        winner_person = next(p for p, c in self.get_current_trick().played_card_by_players if c == winner_card)
         return winner_person, winner_card
 
 
     @staticmethod
-    def get_valid_cards(available_cards: list[Card], leading_card: Card | None, game_mode: GameMode) -> list[Card]:
-        if not leading_card:
+    def get_valid_cards(available_cards: list[Card], tricks_first_card: Card | None, game_mode: GameMode) -> list[Card]:
+        if not tricks_first_card:
             return available_cards
         
-        lead_is_trumpf = game_mode.is_card_trumpf(leading_card)
+        lead_is_trumpf = game_mode.is_card_trumpf(tricks_first_card)
         if lead_is_trumpf:
             matching = [c for c in available_cards if game_mode.is_card_trumpf(c)]
             return matching or available_cards
         
-        lead_suit = leading_card.suit
+        lead_suit = tricks_first_card.suit
         matching = [c for c in available_cards if c.suit == lead_suit and not game_mode.is_card_trumpf(c)]
         # If the searched Sau's suit is played, the sau must be played if available
         if game_mode.game_mode_type == GameModeType.SAUSPIEL and lead_suit == game_mode.suit:
@@ -276,11 +304,4 @@ class Game:
             if searched_sau in available_cards:
                 return [searched_sau]
         return matching or available_cards
-    
-    
-    @staticmethod
-    def get_winning_card(trick: Trick, game_mode: GameMode) -> Card:
-        leading_card = trick.get_leading_card()
-        trick_suit = leading_card.suit if leading_card else None
-        return game_mode.highest_card([c for _, c in trick.player_cards], trick_suit=trick_suit) 
     

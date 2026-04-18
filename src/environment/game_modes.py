@@ -26,6 +26,14 @@ def get_highest_game_mode_type(game_mode_types: list[GameModeType | None]) -> Ga
     return max(choices)
 
 
+def get_valid_game_mode_types_for_cards(hand_cards: list[Card]) -> list[GameModeType]:
+    playable_mode_types = sorted((gmt for gmt in GameModeType if gmt != GameModeType.RAMSCH), key=lambda g: g.value)
+    sauspiel_valid_suits = GameMode.get_suits_for_cards(GameModeType.SAUSPIEL, hand_cards)
+    can_play_sauspiel = len(sauspiel_valid_suits) > 0
+    playable_mode_types = [gmt for gmt in playable_mode_types if gmt != GameModeType.SAUSPIEL or can_play_sauspiel]
+    return playable_mode_types
+    
+
 class GameModeInvalidSuitException(GameException):
     def __init__(self, game_mode, message: str | None = None):
         if message is None:
@@ -90,7 +98,9 @@ class GameMode:
 
 
     @staticmethod
-    def get_suits(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
+    def get_suits_for_cards(game_mode_type: GameModeType, hand_cards: list[Card]) -> list[Suit]:
+        if game_mode_type not in GAME_MODE_TYPES_WITH_SUIT | GAME_MODE_TYPES_WITH_OPTIONAL_SUIT:
+            return []
         if game_mode_type == GameModeType.SAUSPIEL:
             suits = []
             for suit in SAUSPIEL_VALID_SUITS:
@@ -101,7 +111,7 @@ class GameMode:
                     suits.append(suit)
             return sorted(suits, key=lambda s: s.value)
         return list(Suit)
-    
+        
 
     def get_rank_suit_order(self, trick_suit: Suit | None = None) -> tuple[list[Rank], list[Rank], list[Suit]]:
         match self.game_mode_type:
