@@ -188,6 +188,10 @@ cython_debug/
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
+# Schafkopf project – training artifacts
+checkpoints/*.pt
+logs/*.csv
+
 # Ruff stuff:
 .ruff_cache/
 
@@ -205,3 +209,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local configuration file
+config/game_session.yaml
