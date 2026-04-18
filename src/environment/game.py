@@ -51,15 +51,15 @@ class Trick:
         return self.played_card_by_players[0][1] if self.played_card_by_players else None
     
     def get_winner_player(self, game_mode: GameMode) -> Player:
-        leading_card = self.get_first_card()
-        winning_card = game_mode.highest_card([c for _, c in self.played_card_by_players], trick_suit=leading_card.suit if leading_card else None)
+        winning_card = self.get_winning_card(game_mode)
         return next(p for p, c in self.played_card_by_players if c == winning_card)
     
     def get_winning_card(self, game_mode: GameMode) -> Card:
+        if self.is_empty():
+            raise GameEmptyTrickException()
+        
         leading_card = self.get_first_card()
         trick_suit = leading_card.suit if leading_card else None
-        if len(self.played_card_by_players) == 0:
-            raise GameEmptyTrickException()
         return game_mode.highest_card([c for _, c in self.played_card_by_players], trick_suit=trick_suit) 
     
     def is_empty(self):
@@ -168,8 +168,7 @@ class Game:
             return self._players_in_sitting_order
         else:
             last_trick = self.tricks[-2]
-            winning_card = last_trick.get_winning_card(self.game_mode)
-            winning_player = next(p for p, c in last_trick.played_card_by_players if c == winning_card)
+            winning_player = last_trick.get_winner_player(self.game_mode)
 
             new_start_player_index = self._players_in_sitting_order.index(winning_player)
             trick_players_order = self._players_in_sitting_order[new_start_player_index:] + self._players_in_sitting_order[:new_start_player_index]
@@ -281,8 +280,9 @@ class Game:
 
 
     def evaluate_current_trick(self):
-        winner_card = self.get_current_trick().get_winning_card(game_mode=self._game_mode)
-        winner_person = next(p for p, c in self.get_current_trick().played_card_by_players if c == winner_card)
+        current_trick = self.get_current_trick()
+        winner_card = current_trick.get_winning_card(game_mode=self._game_mode)
+        winner_person = current_trick.get_winner_player(game_mode=self._game_mode)
         return winner_person, winner_card
 
 
