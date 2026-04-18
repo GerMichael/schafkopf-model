@@ -1,6 +1,8 @@
+import random
+
 import pytest
 from src.environment.game import Game
-from src.environment.game_modes import GameMode, GameModeType
+from src.environment.game_modes import GameMode, GameModeType, get_valid_game_mode_types_for_cards
 from src.environment.card import Card, Suit, Rank
 
 
@@ -251,3 +253,33 @@ class TestGameValidCards:
             Card(suit=Suit.EICHEL, rank=Rank.SAU),
             Card(suit=Suit.EICHEL, rank=Rank.UNTER),
         }
+
+
+class TestGameFlow:
+
+    def test_random_game_sessions(self):
+        for _ in range(5):
+            game = Game(player_names=["Alice", "Bob", "Charlie", "Diana"])
+            players = game.players_in_sitting_order
+            playing_player = random.choice(players)
+            valid_game_types = get_valid_game_mode_types_for_cards(playing_player.hand_cards)
+            played_game_mode_type = random.choice(valid_game_types)
+            valid_suits = GameMode.get_suits_for_cards(played_game_mode_type, playing_player.hand_cards)
+            if len(valid_suits) == 0:
+                played_suit = None
+            else:
+                played_suit = random.choice(valid_suits)
+            game.set_game_mode(
+                game_mode=GameMode(game_mode_type=played_game_mode_type, suit=played_suit),
+                playing_player=playing_player,
+                )
+
+            for _ in range(8):
+                print(f"Trick players: {[p.name for p in game.get_players_order_for_current_trick()]}")
+                for player in game.get_players_order_for_current_trick():
+                    valid_cards = Game.get_valid_cards(player.hand_cards, game.get_current_trick().get_first_card(), game.game_mode)
+                    card_to_play = random.choice(valid_cards)
+                    game.play_card(player, card_to_play)
+                winning_player, winning_card = game.evaluate_current_trick()
+                print(f"Trick winner: {winning_player.name} with {winning_card}")
+                game.start_new_trick()

@@ -1,4 +1,5 @@
 import pytest
+from src.environment.deck import Deck
 from src.environment.game_modes import GameMode, GameModeInvalidSuitException, GameModeType
 from src.environment.card import Card, Suit, Rank
 
@@ -21,7 +22,7 @@ class TestGameModeValidation:
             Card(suit=Suit.HERZ, rank=Rank.SIEBEN),
             Card(suit=Suit.SCHELLEN, rank=Rank.OBER),
         ]
-        assert GameMode.get_suits(GameModeType.SAUSPIEL, hand) == [Suit.GRAS]
+        assert GameMode.get_suits_for_cards(GameModeType.SAUSPIEL, hand) == [Suit.GRAS]
 
     def test_sauspiel_suits_only_sau_no_other(self):
         hand = [
@@ -29,7 +30,7 @@ class TestGameModeValidation:
             Card(suit=Suit.HERZ, rank=Rank.SIEBEN),
             Card(suit=Suit.GRAS, rank=Rank.UNTER),
         ]
-        assert GameMode.get_suits(GameModeType.SAUSPIEL, hand) == []
+        assert GameMode.get_suits_for_cards(GameModeType.SAUSPIEL, hand) == []
 
 
 class TestIsCardTrumpf:
@@ -188,3 +189,15 @@ class TestIsCardTrumpf:
             Card(suit=Suit.SCHELLEN, rank=Rank.KOENIG),
         ], trick_suit=Suit.SCHELLEN)
         assert highest_card == Card(suit=Suit.SCHELLEN, rank=Rank.KOENIG)
+
+    @pytest.mark.parametrize("game_mode_type, valid_suits", [
+        (GameModeType.SAUSPIEL, [Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN]),
+        (GameModeType.RAMSCH, []),
+        (GameModeType.SOLO, [Suit.EICHEL, Suit.GRAS, Suit.SCHELLEN, Suit.HERZ, None]),
+        (GameModeType.WENZ, []),
+        (GameModeType.GEIER, []),
+    ])
+    def valid_game_mode_type_suits(self, game_mode_type, valid_suits):
+        full_deck = Deck.get_full_deck()
+        actual_valid_suits = GameMode.get_suits_for_cards(game_mode_type, full_deck)
+        assert actual_valid_suits == valid_suits
