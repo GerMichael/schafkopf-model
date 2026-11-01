@@ -1,26 +1,27 @@
 [project]
-name = "schafkopf-model"
+name = "schafskopf"
 version = "0.1.0"
-description = "Reinforcement learning opponent for the Bavarian card game Schafkopf"
-requires-python = ">=3.11"
-
+description = "Text-based Schafkopf card game with reinforcement-learning AI opponents"
+readme = "README.md"
+requires-python = ">=3.14"
 dependencies = [
-    "pyyaml>=6.0.3",
+    "numpy>=2.3",
 ]
 
-[project.optional-dependencies]
+[project.scripts]
+schafskopf = "schafskopf.cli:main"
+
+[dependency-groups]
 dev = [
-    "pytest>=9.0.2",
+    "pytest>=8.4",
 ]
 
 [build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/schafskopf"]
 
 [tool.pytest.ini_options]
-testpaths = ["src"]
-python_files = ["*_spec.py"]
+testpaths = ["tests"]

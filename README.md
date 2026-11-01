@@ -1,74 +1,57 @@
-# schafkopf-model
+# Schafkopf
 
-Reinforcement learning opponent for the Bavarian card game **Schafkopf**.
+A complete text-based version of **Schafkopf**, the Bavarian trick-taking card
+game, written in Python 3.14 and managed with [uv](https://docs.astral.sh/uv/).
+Play against humans (hot-seat) or AI opponents in three difficulty tiers
+(easy, medium, hard). The AI is trained with **reinforcement learning** on
+state vectors that are stored in a separate folder and can be retrained by hand
+at any time.
 
-## Schafkopf Game Mechanics
+## Quick start
 
-The underlying Schafkopf rules are not yet configurable. Currently, the following version is implemented:
-
-### Available Game Modes
-
-- **Ramsch**: no extra rules, no teams, the player with the least points wins
-- **Sauspiel**: no extra rules, two players play in a team, a non-Herz Sau gets searched
-- **Solo**: one player against the rest, a suit can be defined as Trumpf
-- **Geier**: one player against the rest, no suit is Trumpf, only Geier are Trumpf
-- **Wenz**: one player against the rest, no suit is Trumpf, only Unter are Trumpf
-
-The order of value is like this: Ramsch < Sauspiel < Solo < Geier < Wenz
-
-### Implemented Schafkopf Procedure
-
-1. **Setup** — 4 players are configured (via config file or manual input). A 32-card deck is shuffled and dealt evenly (8 cards per player).
-2. **Bidding** — Each player views their hand and decides whether they want to play. Players who want to play choose a game mode (Sauspiel, Wenz, Geier, or Solo). The highest-valued mode wins. If nobody wants to play, Ramsch is played.
-3. **Suit Selection** — The winning bidder chooses a suit if required: mandatory for Sauspiel (the searched Sau's suit), optional for Solo (a Trumpf suit).
-4. **Playing Rounds** — 8 rounds are played (32 cards / 4 players). Each round:
-   - A new trick starts.
-   - Players play one card each in order, starting with the previous trick's winner.
-   - Card validity is enforced: players must follow suit or play Trumpf if able. In Sauspiel, if the searched Sau's suit is led, the holder must play it.
-   - The highest card wins the trick. The winner collects it and leads the next round.
-5. **Team Reveal (Sauspiel only)** — When the searched Sau is played, teams are revealed: the Sau holder partners with the bidder.
-6. **Scoring** — Each player's won trick points are summed. In Ramsch, the player with the fewest points wins. In all other modes, the player with the most points wins.
-
-## Setup
-
-This python project is set up via [astral's `uv`](https://docs.astral.sh/uv/) package manager.
-
-After installation of `uv`, execute the following to install and build the dependencies
-
-```sh
-uv sync
+```bash
+uv sync                 # install Python 3.14 environment + numpy
+uv run schafskopf       # interactive menu: start a game, pick mode and players
 ```
 
-## CLI Game
+Train or improve the AI opponents:
 
-Run the CLI game by executing
-
-```
-uv run cli_game.py
-```
-
-You can configure a game session config file in `config/game_session.yaml` that contains an array of four player names for the property `players`, e.g.,
-
-```yaml
-players:
- - Player A
- - Player B
- - Player C
- - Player D
+```bash
+uv run schafskopf train-all                         # all tiers with config/tiers.toml
+uv run schafskopf train --tier hard --episodes 20000 # continue training one tier
+uv run schafskopf evaluate --tier hard              # how good is it?
+uv run schafskopf data                              # models + stored vectors
 ```
 
-## Testing
+## Features
 
-This project contains some test files. `pytest` handles their execution and is being configured in `pyproject.toml`.
+* All four players, full rules: following suit and trump, Rufsau obligations
+  (incl. *davonlaufen*), Sauspiel, Wenz, Farbsolo, Ramsch (with Jungfrau and
+  Durchmarsch), Schneider, Schwarz, Laufende and a configurable tariff.
+* Table modes: Standard, without Ramsch, Sauspiel only, Ramsch only, Custom.
+* Seats can be Human, AI easy/medium/hard, a rule-based bot or a random bot.
+  Several humans share the screen in hot-seat mode; with no humans you can watch.
+* AI = two numpy neural networks per tier (bidding + card play), warm-started by
+  imitating the rule-based bot and then trained by self-play reinforcement
+  learning (actor-critic for card play, contextual bandit for bidding).
+* Training vectors in `training_data/<tier>/`, model files in `models/`,
+  hyper-parameters in `config/tiers.toml` – all editable by hand.
 
-Run all test files by executing
+## Documentation
 
-```sh
-uv run --extra dev pytest
+| Document | Content |
+|----------|---------|
+| [docs/gameplay.md](docs/gameplay.md) | installing, menus, playing a round step by step, commands |
+| [docs/rules.md](docs/rules.md) | deck, card values, trumps, following suit, Rufsau, bidding |
+| [docs/game-modes.md](docs/game-modes.md) | Sauspiel, Wenz, Solo, Ramsch and the table modes |
+| [docs/winning-and-scoring.md](docs/winning-and-scoring.md) | 61 points, Schneider, Schwarz, Laufende, payouts, match winner |
+| [docs/ai-and-training.md](docs/ai-and-training.md) | tiers, RL algorithm, vector layout, training data, retraining by hand |
+| [docs/architecture.md](docs/architecture.md) | code structure, engine flow, extending, tests |
+
+## Development
+
+```bash
+uv run pytest
 ```
 
-Run a specific test file by executing
-
-```sh
-uv run --extra dev pytest src/environment/game_modes_spec.py
-```
+Rules reference: https://www.sauspiel.de/schafkopf-lernen

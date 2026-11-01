@@ -1,0 +1,96 @@
+# AI difficulty tiers.
+#
+# Every tier owns one model file (models/<tier>.npz) and one folder of
+# training vectors (training_data/<tier>/). Edit the values below by hand and
+# re-run `uv run schafskopf train --tier <tier>` to continue training with the
+# new settings. Changing `hidden` requires `--reset`, because the existing
+# weights no longer fit the new network shape.
+#
+# Network / training
+#   hidden              sizes of the hidden layers of both networks (bid + play)
+#   episodes            default number of self-play rounds for one `train` call
+#   batch_episodes      rounds collected before each gradient update
+#   learning_rate       Adam step size
+#   epochs              passes over every collected batch
+#   minibatch           samples per gradient step
+#   entropy_coef        bonus for keeping the card-play policy exploratory
+#   value_coef          weight of the value (baseline) loss
+#   reward_scale        payout in cents is divided by this to form the reward
+#   shaping             weight of the card-point shaping term in the reward
+#   opponents           who fills the other seats during training:
+#                       "self" | "heuristic" | "random" | "mixed"
+#   learner_seats       how many of the 4 seats are played by the learning model
+#   bid_epsilon         share of random announcements while training (exploration)
+#   keep_batches        how many vector batches to keep on disk (oldest removed)
+#
+# Imitation warm start (only for a fresh or --reset model)
+#   imitation_episodes    rounds of the rule-based bot that the model copies (0 = off)
+#   imitation_epochs      passes over that imitation data
+#   imitation_bid_explore share of random announcements in those rounds
+#
+# Playing strength at the table (no retraining needed after a change)
+#   temperature         softmax temperature when the tier plays (0 = always best move)
+#   epsilon             probability of a completely random legal move
+
+[easy]
+hidden = [64, 32]
+episodes = 5000
+batch_episodes = 250
+learning_rate = 0.0005
+epochs = 2
+minibatch = 256
+entropy_coef = 0.01
+value_coef = 0.5
+reward_scale = 50.0
+shaping = 0.3
+opponents = "random"
+learner_seats = 2
+bid_epsilon = 0.1
+keep_batches = 20
+imitation_episodes = 2000
+imitation_epochs = 4
+imitation_bid_explore = 0.3
+temperature = 1.0
+epsilon = 0.1
+
+[medium]
+hidden = [128, 64]
+episodes = 20000
+batch_episodes = 250
+learning_rate = 0.0002
+epochs = 3
+minibatch = 256
+entropy_coef = 0.01
+value_coef = 0.5
+reward_scale = 50.0
+shaping = 0.3
+opponents = "mixed"
+learner_seats = 2
+bid_epsilon = 0.1
+keep_batches = 40
+imitation_episodes = 8000
+imitation_epochs = 6
+imitation_bid_explore = 0.3
+temperature = 0.3
+epsilon = 0.02
+
+[hard]
+hidden = [256, 128]
+episodes = 60000
+batch_episodes = 250
+learning_rate = 0.0001
+epochs = 3
+minibatch = 256
+entropy_coef = 0.01
+value_coef = 0.5
+reward_scale = 50.0
+shaping = 0.3
+opponents = "heuristic"
+learner_seats = 2
+bid_epsilon = 0.1
+keep_batches = 60
+imitation_episodes = 30000
+imitation_epochs = 10
+imitation_bid_explore = 0.3
+temperature = 0.0
+epsilon = 0.0
