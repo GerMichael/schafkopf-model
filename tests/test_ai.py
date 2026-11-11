@@ -1,6 +1,7 @@
 import random
 
 import numpy as np
+import torch
 
 from schafskopf.ai.agent import ModelBundle, RLPlayer
 from schafskopf.ai.config import TierConfig, load_tier
@@ -29,38 +30,28 @@ def test_encodings_in_real_round():
     assert arrays["play_masks"][np.arange(len(arrays["play_actions"])), arrays["play_actions"]].all()
 
 
-def test_gradient_matches_numeric():
-    net = PolicyValueNet(6, 4, (5,), seed=1)
-    x = np.random.default_rng(0).standard_normal((3, 6)).astype(np.float64)
-    mask = np.array([[1, 1, 0, 1], [1, 1, 1, 1], [0, 1, 1, 0]], dtype=bool)
-    actions = np.array([0, 2, 1])
-    for k in net.params:
-        net.params[k] = net.params[k].astype(np.float64)
+def test_supervised_step_learns_and_respects_mask():
+    net = PolicyValueNet(6, 4, (16,), seed=1)
+    x = np.random.default_rng(0).standard_normal((8, 6)).astype(np.float32)
+    mask = np.ones((8, 4), dtype=bool)
+    mask[:, 3] = False
+    actions = np.array([0, 1, 2, 0, 1, 2, 0, 1])
+    first = net.train_step(x, mask, actions, np.zeros(8), lr=1e-2, supervised=True, entropy_coef=0.0)
+    for _ in range(200):
+        last = net.train_step(x, mask, actions, np.zeros(8), lr=1e-2, supervised=True, entropy_coef=0.0)
+    assert last["policy_loss"] < first["policy_loss"]
+    probs, _ = net.predict(x[0], mask[0])
+    assert probs[3] == 0 and abs(probs.sum() - 1) < 1e-5
 
-    def loss() -> float:
-        acts, logits, value = net._forward(x)
-        p = net.masked_softmax(logits, mask)
-        logp = np.log(p[np.arange(3), actions])
-        return float(-logp.mean())
 
-    # analytic gradient with supervised=True, no value/entropy terms and plain SGD
-    captured = {}
-    net._adam = lambda grads, lr: captured.update(grads)
-    net.train_step(x, mask, actions, np.zeros(3), lr=0.0, value_coef=0.0, entropy_coef=0.0,
-                   max_grad_norm=1e9, supervised=True)
-    eps = 1e-6
-    w = net.params["W0"]
-    numeric = np.zeros_like(w)
-    for i in range(w.shape[0]):
-        for j in range(w.shape[1]):
-            old = w[i, j]
-            w[i, j] = old + eps
-            up = loss()
-            w[i, j] = old - eps
-            down = loss()
-            w[i, j] = old
-            numeric[i, j] = (up - down) / (2 * eps)
-    assert np.allclose(captured["W0"], numeric, atol=1e-5)
+def test_q_step_regresses_taken_action():
+    net = PolicyValueNet(4, 3, (16,), seed=2)
+    x = np.random.default_rng(1).standard_normal((16, 4)).astype(np.float32)
+    actions = np.arange(16) % 3
+    returns = np.where(actions == 0, 1.0, -1.0).astype(np.float32)
+    for _ in range(300):
+        stats = net.q_step(x, actions, returns, lr=1e-2)
+    assert stats["value_loss"] < 0.05
 
 
 def test_model_save_and_load(tmp_path):
@@ -68,8 +59,8 @@ def test_model_save_and_load(tmp_path):
     path = tmp_path / "m.npz"
     model.save(path)
     loaded = ModelBundle.load(path)
-    for k, v in model.play_net.params.items():
-        assert np.array_equal(v, loaded.play_net.params[k])
+    for k, v in model.play_net.state_dict().items():
+        assert torch.equal(v, loaded.play_net.state_dict()[k])
 
 
 def test_short_training_run(tmp_path, monkeypatch):

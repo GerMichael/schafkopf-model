@@ -3,7 +3,7 @@
 ## 1. Overview
 
 Every AI tier (**easy**, **medium**, **hard**) consists of two small neural
-networks, implemented from scratch in numpy (`src/schafskopf/ai/network.py`):
+networks, built with PyTorch (`src/schafskopf/ai/network.py`):
 
 | Network       | Input                     | Output                                   | Learns with |
 |---------------|---------------------------|------------------------------------------|-------------|

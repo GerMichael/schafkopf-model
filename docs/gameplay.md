@@ -6,7 +6,7 @@ Requirements: [uv](https://docs.astral.sh/uv/) and Python 3.14 (uv downloads it 
 
 ```bash
 cd schafskopf
-uv sync            # creates .venv with Python 3.14 and installs numpy
+uv sync            # creates .venv with Python 3.14 and installs numpy and PyTorch
 uv run schafskopf  # starts the interactive menu
 ```
 

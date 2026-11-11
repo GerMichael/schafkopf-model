@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from ..cards import Card
 from ..game import Observation
@@ -37,7 +38,8 @@ class ModelBundle:
         bid_net = PolicyValueNet(BID_DIM, NUM_BIDS, tier.hidden, seed)
         # Pessimistic start: announcing a game is assumed to cost money until
         # experience shows otherwise (the bid head predicts expected rewards).
-        bid_net.params["bp"][1:] = -1.0
+        with torch.no_grad():
+            bid_net.policy_head.bias[1:] = -1.0
         return cls(bid_net, PolicyValueNet(PLAY_DIM, 32, tier.hidden, None if seed is None else seed + 1), meta)
 
     @classmethod
@@ -57,7 +59,7 @@ class ModelBundle:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.meta["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        arrays = {**self.bid_net.state_dict("bid"), **self.play_net.state_dict("play")}
+        arrays = {**self.bid_net.state_dict_arrays("bid"), **self.play_net.state_dict_arrays("play")}
         tmp = path.with_suffix(".tmp.npz")
         np.savez_compressed(tmp, meta=np.array(json.dumps(self.meta)), **arrays)
         tmp.replace(path)

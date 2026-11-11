@@ -10,7 +10,7 @@ at any time.
 ## Quick start
 
 ```bash
-uv sync                 # install Python 3.14 environment + numpy
+uv sync                 # install Python 3.14 environment + numpy + PyTorch
 uv run schafskopf       # interactive menu: start a game, pick mode and players
 ```
 
@@ -31,7 +31,7 @@ uv run schafskopf data                              # models + stored vectors
 * Table modes: Standard, without Ramsch, Sauspiel only, Ramsch only, Custom.
 * Seats can be Human, AI easy/medium/hard, a rule-based bot or a random bot.
   Several humans share the screen in hot-seat mode; with no humans you can watch.
-* AI = two numpy neural networks per tier (bidding + card play), warm-started by
+* AI = two PyTorch neural networks per tier (bidding + card play), warm-started by
   imitating the rule-based bot and then trained by self-play reinforcement
   learning (actor-critic for card play, contextual bandit for bidding).
 * Training vectors in `training_data/<tier>/`, model files in `models/`,
