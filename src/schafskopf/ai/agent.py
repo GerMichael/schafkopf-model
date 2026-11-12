@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from ..cards import Card
 from ..game import Observation
@@ -17,6 +17,7 @@ from ..rules import NUM_BIDS, GameType
 from ..scoring import RoundResult
 from .config import TierConfig, model_path
 from .encoding import BID_DIM, PLAY_DIM, bid_mask, card_mask, encode_bid, encode_play
+from .learner import Learner, LossConfig
 from .network import PolicyValueNet
 
 MODEL_VERSION = 1
@@ -24,11 +25,23 @@ MODEL_VERSION = 1
 
 @dataclass
 class ModelBundle:
-    """Bidding and card-play networks of one tier, stored in models/<tier>.npz."""
+    """Bidding and card-play networks (with their learners) of one tier, stored in models/<tier>.pt."""
 
     bid_net: PolicyValueNet
     play_net: PolicyValueNet
     meta: dict = field(default_factory=dict)
+    bid_learner: Learner = field(init=False)
+    play_learner: Learner = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.bid_learner = Learner(self.bid_net)
+        self.play_learner = Learner(self.play_net)
+
+    def configure(self, lr: float, loss: LossConfig) -> None:
+        """Set learning rate and loss hyperparameters for both learners."""
+        for learner in (self.bid_learner, self.play_learner):
+            learner.set_lr(lr)
+            learner.loss = loss
 
     @classmethod
     def fresh(cls, tier: TierConfig, seed: int | None = None) -> ModelBundle:
@@ -37,15 +50,19 @@ class ModelBundle:
         bid_net = PolicyValueNet(BID_DIM, NUM_BIDS, tier.hidden, seed)
         # Pessimistic start: announcing a game is assumed to cost money until
         # experience shows otherwise (the bid head predicts expected rewards).
-        bid_net.params["bp"][1:] = -1.0
-        return cls(bid_net, PolicyValueNet(PLAY_DIM, 32, tier.hidden, None if seed is None else seed + 1), meta)
+        bid_net.set_action_bias(slice(1, None), -1.0)
+        play_net = PolicyValueNet(PLAY_DIM, 32, tier.hidden, None if seed is None else seed + 1)
+        return cls(bid_net, play_net, meta)
 
     @classmethod
     def load(cls, path: Path) -> ModelBundle:
-        with np.load(path) as data:
-            meta = json.loads(str(data["meta"]))
-            bundle = cls(PolicyValueNet.from_state_dict(data, "bid"),
-                         PolicyValueNet.from_state_dict(data, "play"), meta)
+        ckpt = torch.load(path, weights_only=True)
+        nets = {k: PolicyValueNet.from_config(ckpt[k]["arch"]) for k in ("bid", "play")}
+        for k, net in nets.items():
+            net.load_state_dict(ckpt[k]["model"])
+        bundle = cls(nets["bid"], nets["play"], ckpt["meta"])
+        bundle.bid_learner.optimizer.load_state_dict(ckpt["bid"]["optimizer"])
+        bundle.play_learner.optimizer.load_state_dict(ckpt["play"]["optimizer"])
         if bundle.bid_net.input_dim != BID_DIM or bundle.play_net.input_dim != PLAY_DIM:
             raise ValueError(f"{path} was trained with a different state encoding; retrain with --reset")
         return bundle
@@ -57,9 +74,11 @@ class ModelBundle:
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.meta["updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        arrays = {**self.bid_net.state_dict("bid"), **self.play_net.state_dict("play")}
-        tmp = path.with_suffix(".tmp.npz")
-        np.savez_compressed(tmp, meta=np.array(json.dumps(self.meta)), **arrays)
+        ckpt = {"meta": self.meta}
+        for key, net, learner in (("bid", self.bid_net, self.bid_learner), ("play", self.play_net, self.play_learner)):
+            ckpt[key] = {"arch": net.config, "model": net.state_dict(), "optimizer": learner.optimizer.state_dict()}
+        tmp = path.with_suffix(".tmp")
+        torch.save(ckpt, tmp)
         tmp.replace(path)
 
 
@@ -136,8 +155,9 @@ class RLPlayer(Player):
 
     def bid(self, obs: Observation, legal: list[int]) -> int:
         x, mask = encode_bid(obs), bid_mask(legal)
-        q = self.model.bid_net.logits(x)
-        probs = PolicyValueNet.masked_softmax(q[None, :], mask[None, :], max(self.bid_temperature, 1e-3))[0]
+        net = self.model.bid_net
+        q = net.logits(x)
+        probs, _ = net.predict(x, mask, max(self.bid_temperature, 1e-3))
         action = choose(probs, mask, self.bid_temperature, self.bid_epsilon, self.rng, q)
         if self.recorder is not None:
             self._traj.bid_states.append(x)

@@ -10,7 +10,7 @@ played:
    reward of the seat that made it – all moves of a round share it).
 3. **Save** the batch as ``training_data/<tier>/batch_*.npz``.
 4. **Update** both networks for ``epochs`` passes over the batch.
-5. **Checkpoint** the model to ``models/<tier>.npz`` and append a line to
+5. **Checkpoint** the model to ``models/<tier>.pt`` and append a line to
    ``training_data/<tier>/log.csv``.
 
 ``replay`` re-trains on the vector files already on disk without playing.
@@ -34,7 +34,7 @@ from ..players.random_player import RandomPlayer
 from .agent import ModelBundle, RLPlayer, Trajectory, round_reward
 from .config import TierConfig, data_dir, model_path
 from .encoding import BID_DIM, PLAY_DIM, bid_mask, card_mask, encode_bid, encode_play
-from .network import PolicyValueNet
+from .learner import Learner, LossConfig
 
 BATCH_KEYS = ("bid_states", "bid_masks", "bid_actions", "bid_returns",
               "play_states", "play_masks", "play_actions", "play_returns")
@@ -78,10 +78,11 @@ def trajectories_to_arrays(records: list[tuple[Trajectory, float, int, bool]]) -
     return arrays
 
 
-def update_net(net: PolicyValueNet, states: np.ndarray, masks: np.ndarray, actions: np.ndarray,
+def update_net(learner: Learner, states: np.ndarray, masks: np.ndarray, actions: np.ndarray,
                returns: np.ndarray, cfg: TierConfig, rng: np.random.Generator,
-               lr: float | None = None, epochs: int | None = None,
-               supervised: bool = False, q_learning: bool = False) -> dict[str, float]:
+               epochs: int | None = None, supervised: bool = False,
+               q_learning: bool = False) -> dict[str, float]:
+    """Minibatch epochs over one batch of samples; learning rate and losses come from the learner."""
     stats = {"policy_loss": 0.0, "value_loss": 0.0, "entropy": 0.0}
     n, steps = len(states), 0
     if n == 0:
@@ -91,11 +92,10 @@ def update_net(net: PolicyValueNet, states: np.ndarray, masks: np.ndarray, actio
         for start in range(0, n, cfg.minibatch):
             idx = order[start:start + cfg.minibatch]
             if q_learning:
-                s = net.q_step(states[idx], actions[idx], returns[idx], lr or cfg.learning_rate)
+                s = learner.q_step(states[idx], actions[idx], returns[idx])
             else:
-                s = net.train_step(states[idx], masks[idx], actions[idx], returns[idx],
-                                   lr or cfg.learning_rate, cfg.value_coef, cfg.entropy_coef,
-                                   supervised=supervised)
+                s = learner.train_step(states[idx], masks[idx], actions[idx], returns[idx],
+                                       supervised=supervised)
             for k in stats:
                 stats[k] += s[k]
             steps += 1
@@ -164,6 +164,7 @@ class Trainer:
                                  f"config says {list(cfg.hidden)}; use --reset to start over")
         else:
             self.model = ModelBundle.fresh(cfg, seed)
+        self.model.configure(self.learning_rate, LossConfig(cfg.value_coef, cfg.entropy_coef))
 
     # -- collection -------------------------------------------------------
     def _opponent(self, seat: int) -> Player:
@@ -220,12 +221,12 @@ class Trainer:
     # -- main loop --------------------------------------------------------
     def learn(self, arrays: dict[str, np.ndarray], epochs: int | None = None,
               supervised: bool = False) -> dict[str, float]:
-        bid = update_net(self.model.bid_net, arrays["bid_states"], arrays["bid_masks"],
+        bid = update_net(self.model.bid_learner, arrays["bid_states"], arrays["bid_masks"],
                          arrays["bid_actions"], arrays["bid_returns"], self.cfg, self.np_rng,
-                         self.learning_rate, epochs, q_learning=True)
-        play = update_net(self.model.play_net, arrays["play_states"], arrays["play_masks"],
+                         epochs, q_learning=True)
+        play = update_net(self.model.play_learner, arrays["play_states"], arrays["play_masks"],
                           arrays["play_actions"], arrays["play_returns"], self.cfg, self.np_rng,
-                          self.learning_rate, epochs, supervised)
+                          epochs, supervised)
         return {**play, "bid_loss": bid["value_loss"]}
 
     def imitate(self, episodes: int, epochs: int = 5,

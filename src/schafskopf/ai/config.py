@@ -29,7 +29,7 @@ def config_path() -> Path:
 
 
 def model_path(tier: str) -> Path:
-    return project_root() / "models" / f"{tier}.npz"
+    return project_root() / "models" / f"{tier}.pt"
 
 
 def data_dir(tier: str) -> Path:

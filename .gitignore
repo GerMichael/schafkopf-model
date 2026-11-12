@@ -215,3 +215,4 @@ config/game_session.yaml
 
 # Training model
 *.npz
+*.pt
